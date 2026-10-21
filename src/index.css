@@ -46,3 +46,8 @@ th { background:#f1f5f9; white-space:nowrap; }
 .resumen { display:flex; flex-wrap:wrap; gap:.75rem; padding:0; list-style:none; }
 .resumen li { padding:.5rem .75rem; background:#fff; border:1px solid var(--borde); border-radius:8px; }
 .resumen small { display:block; color:#475569; }
+
+.foto { width:100%; height:auto; aspect-ratio:4/3; object-fit:cover; border-radius:6px; background:#e2e8f0; display:block; }
+.foto.vacia { display:grid; place-items:center; color:#64748b; font-size:.85rem; }
+.miniatura { width:48px; height:36px; object-fit:cover; border-radius:4px; background:#e2e8f0; vertical-align:middle; }
+.vista-previa { max-width:200px; }

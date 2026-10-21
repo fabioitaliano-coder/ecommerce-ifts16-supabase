@@ -5,6 +5,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { usePaginado } from '../../hooks/usePaginado';
 import { PaginationControls } from '../../components/PaginationControls';
 import { dinero } from '../../lib/formato';
+import { urlImagen } from '../../lib/imagenes';
 import type { Categoria, Producto } from '../../types';
 
 export function Tienda() {
@@ -48,6 +49,9 @@ export function Tienda() {
           const agotado = p.stock <= 0;
           return (
             <article key={p.id} className="tarjeta producto">
+              {urlImagen(p.imagen_path)
+                ? <img className="foto" src={urlImagen(p.imagen_path)!} alt={p.nombre} loading="lazy" width={400} height={300} />
+                : <div className="foto vacia" aria-hidden="true">Sin imagen</div>}
               <small>{p.categorias?.nombre}</small>
               <h2>{p.nombre}</h2>
               <p className="precio">{dinero(p.precio)}</p>

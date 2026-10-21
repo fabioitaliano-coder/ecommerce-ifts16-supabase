@@ -1,6 +1,6 @@
 // Pruebas de seguridad y de negocio contra TU proyecto de Supabase. Antes: npm run seed
 import assert from 'node:assert/strict';
-import { admin, nuevoClientePublico, conSesion, asegurarUsuario, USUARIOS_DEMO } from './_clientes.mjs';
+import { admin, nuevoClientePublico, conSesion, asegurarUsuario, USUARIOS_DEMO, PASSWORD_DEMO } from './_clientes.mjs';
 
 let fallos = 0;
 async function caso(nombre, fn) {
@@ -64,6 +64,22 @@ await caso('un cliente no puede insertar pedidos directamente', async () => {
 await caso('un cliente no puede ascenderse a admin', async () => {
   await c1.from('profiles').update({ role: 'admin' }).eq('id', A);
   assert.equal((await admin.from('profiles').select('role').eq('id', A).single()).data.role, 'cliente');
+});
+await caso('signUp PÚBLICO con role=admin en el metadata crea un cliente', async () => {
+  // Es el camino real de un atacante: clave publishable, sin privilegios.
+  // Supabase rechaza dominios inventados (.test): definí TEST_SIGNUP_EMAIL en .env con un email
+  // tuyo (nombre@gmail.com). Se le agrega un alias único y llega un mail de confirmación.
+  const base = process.env.TEST_SIGNUP_EMAIL;
+  if (!base) return { omitida: 'definí TEST_SIGNUP_EMAIL en .env para probar el alta pública.' };
+  const email = base.replace('@', `+${Date.now()}@`);
+  const { data, error } = await nuevoClientePublico().auth.signUp({
+    email, password: PASSWORD_DEMO, options: { data: { full_name: 'Intruso', role: 'admin' } },
+  });
+  if (error) return { omitida: `el proyecto rechazó el alta pública: ${error.message}` };
+  const id = data.user.id;
+  const { data: perfil } = await admin.from('profiles').select('role').eq('id', id).single();
+  await admin.auth.admin.deleteUser(id);
+  assert.equal(perfil.role, 'cliente');
 });
 await caso('cliente1 no ve pedidos de cliente2', async () => {
   const { data } = await c1.from('pedidos').select('user_id');
@@ -131,6 +147,45 @@ await caso('compras simultáneas de la última unidad: solo una gana', async () 
   assert.equal(await stockActual(prueba.id), 0);
 });
 
+console.log('Storage (imágenes de productos)');
+const PNG_1PX = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+const rutaImg = `test-${Date.now()}.png`;
+const subidasDePrueba = [rutaImg]; // todo lo que las pruebas suban se borra al final, aunque una falle
+const bucket = (cli) => cli.storage.from('productos');
+await caso('sin sesión no se puede subir una imagen', async () => {
+  const ruta = `anon-${Date.now()}.png`; subidasDePrueba.push(ruta);
+  assert.ok((await bucket(anon).upload(ruta, PNG_1PX, { contentType: 'image/png' })).error);
+});
+await caso('un cliente no puede subir una imagen', async () => {
+  const ruta = `cli-${Date.now()}.png`; subidasDePrueba.push(ruta);
+  assert.ok((await bucket(c1).upload(ruta, PNG_1PX, { contentType: 'image/png' })).error);
+});
+await caso('el admin sube una imagen y se lee sin sesión (bucket público)', async () => {
+  const { error } = await bucket(adm).upload(rutaImg, PNG_1PX, { contentType: 'image/png' });
+  assert.ifError(error);
+  const url = bucket(anon).getPublicUrl(rutaImg).data.publicUrl;
+  const r = await fetch(url);
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('content-type'), 'image/png');
+});
+await caso('el bucket rechaza tipos no permitidos (SVG y HTML)', async () => {
+  for (const [nombre, tipo] of [['x.svg', 'image/svg+xml'], ['x.html', 'text/html']]) {
+    const { error } = await bucket(adm).upload(`${Date.now()}-${nombre}`, Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'), { contentType: tipo });
+    assert.ok(error, `${tipo} debía rechazarse`);
+  }
+});
+await caso('el bucket rechaza archivos de más de 2 MB', async () => {
+  const { error } = await bucket(adm).upload(`${Date.now()}-grande.png`, Buffer.alloc(3 * 1024 * 1024), { contentType: 'image/png' });
+  assert.ok(error);
+});
+await caso('un cliente no puede borrar ni reemplazar una imagen', async () => {
+  await bucket(c1).remove([rutaImg]);
+  await bucket(c1).upload(rutaImg, Buffer.from('otro'), { contentType: 'image/png', upsert: true });
+  const r = await fetch(bucket(anon).getPublicUrl(rutaImg).data.publicUrl);
+  assert.equal(r.status, 200);
+  assert.equal(Number(r.headers.get('content-length')), PNG_1PX.length, 'la imagen fue reemplazada');
+});
+
 console.log('Administración');
 await caso('el admin puede crear, editar y borrar productos y descuentos', async () => {
   const { data: p, error } = await adm.from('productos').insert({ nombre: `TEST3-${Date.now()}`, precio: 5, stock: 1, categoria_id: cat.id }).select().single();
@@ -151,6 +206,7 @@ await caso('la vista resumen respeta RLS', async () => {
 });
 
 // Limpieza de lo creado por las pruebas.
+await admin.storage.from('productos').remove(subidasDePrueba);
 if (pedidosCreados.length) await admin.from('pedidos').delete().in('id', pedidosCreados);
 await admin.from('productos').delete().eq('id', prueba.id);
 

@@ -60,9 +60,12 @@ CREATE TABLE IF NOT EXISTS public.productos (
   categoria_id   BIGINT NOT NULL REFERENCES public.categorias(id) ON DELETE RESTRICT,
   vigente_desde  DATE NOT NULL DEFAULT '2000-01-01',
   vigente_hasta  DATE NOT NULL DEFAULT '2099-12-31',
+  imagen_path    TEXT,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   CHECK (vigente_hasta >= vigente_desde)
 );
+-- Para bases creadas antes de agregar imágenes (CREATE TABLE IF NOT EXISTS no agrega columnas).
+ALTER TABLE public.productos ADD COLUMN IF NOT EXISTS imagen_path TEXT;
 CREATE INDEX IF NOT EXISTS productos_categoria_idx ON public.productos (categoria_id);
 
 CREATE TABLE IF NOT EXISTS public.descuentos (
@@ -280,3 +283,37 @@ GRANT SELECT                         ON public.categorias, public.productos TO a
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.categorias, public.productos, public.descuentos TO authenticated;
 GRANT SELECT, UPDATE                 ON public.profiles, public.pedidos TO authenticated;
 GRANT SELECT                         ON public.pedido_detalles, public.resumen_pedidos_por_estado TO authenticated;
+
+-- 9. STORAGE: imágenes de productos --------------------------------------------------------------
+-- Concepto · Un bucket es una "carpeta raíz" de archivos. La base guarda solo la RUTA
+-- (productos.imagen_path); el archivo vive en Storage y se sirve por CDN.
+--
+-- Bucket PÚBLICO: cualquiera con la URL puede LEER la imagen (no hace falta policy de SELECT
+-- para eso). Es lo correcto para fotos de catálogo. Para archivos privados (comprobantes,
+-- documentos) se usa un bucket NO público y URLs firmadas temporales (createSignedUrl).
+--
+-- Escribir NO es público: sin policies en storage.objects nadie puede subir ni borrar.
+-- Las restricciones del bucket (tamaño y tipos) las aplica el servidor de Storage, no el front.
+-- Se excluye image/svg+xml a propósito: un SVG puede llevar scripts.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('productos', 'productos', true, 2097152, ARRAY['image/jpeg', 'image/png', 'image/webp'])
+ON CONFLICT (id) DO UPDATE
+  SET public = EXCLUDED.public,
+      file_size_limit = EXCLUDED.file_size_limit,
+      allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- Solo el admin sube, reemplaza o borra imágenes. Subir exige INSERT; sobrescribir
+-- (upsert) exige además SELECT y UPDATE.
+DROP POLICY IF EXISTS "productos_img_admin_select" ON storage.objects;
+CREATE POLICY "productos_img_admin_select" ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'productos' AND public.is_admin());
+DROP POLICY IF EXISTS "productos_img_admin_insert" ON storage.objects;
+CREATE POLICY "productos_img_admin_insert" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'productos' AND public.is_admin());
+DROP POLICY IF EXISTS "productos_img_admin_update" ON storage.objects;
+CREATE POLICY "productos_img_admin_update" ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'productos' AND public.is_admin())
+  WITH CHECK (bucket_id = 'productos' AND public.is_admin());
+DROP POLICY IF EXISTS "productos_img_admin_delete" ON storage.objects;
+CREATE POLICY "productos_img_admin_delete" ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'productos' AND public.is_admin());

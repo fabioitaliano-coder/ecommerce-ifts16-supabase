@@ -11,7 +11,8 @@ Datos 100 % ficticios (Ley 25.326). Licencia MIT.
 - **Tienda pública:** catálogo con búsqueda, filtro por categoría y paginación. Se ve sin iniciar sesión.
 - **Carrito y checkout:** el carrito vive en el navegador, pero la compra la resuelve la función de base de datos `crear_pedido()`.
 - **Cuenta del cliente:** registro, login e historial de pedidos con detalle.
-- **Administración (solo rol admin):** pedidos con cambio de estado y resumen, productos con vigencia y stock, categorías, códigos de descuento y clientes (con cambio de rol).
+- **Administración (solo rol admin):** pedidos con cambio de estado y resumen, productos con vigencia, stock e **imagen**, categorías, códigos de descuento y clientes (con cambio de rol).
+- **Imágenes de productos con Supabase Storage:** el admin sube una foto desde el formulario; se guarda en un bucket público y la base conserva solo la ruta.
 
 ## Qué tiene de distinto frente al repo original
 
@@ -61,11 +62,26 @@ Completá `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_SECRE
 ```bash
 npm install
 npm run seed       # categorías, productos, 2 descuentos, 3 usuarios demo y pedidos
-npm run test:rls   # 20 pruebas que intentan romper la seguridad y el checkout
+npm run test:rls   # 26 pruebas que intentan romper la seguridad, el checkout y Storage
 npm run dev        # http://localhost:5173
 ```
 
 Usuarios demo (ficticios): `admin@demo.test`, `cliente1@demo.test` y `cliente2@demo.test`, todos con la contraseña `demo1234`. Códigos de descuento: `BIENVENIDA10` (10 %) y `VERANO20` (20 %, compra mínima de 100).
+
+## Imágenes con Supabase Storage
+
+Las fotos de los productos viven en un **bucket**, no en la base de datos. La tabla `productos` guarda solo la ruta (`imagen_path`); el archivo se sirve por CDN.
+
+| Decisión | Por qué |
+| :--- | :--- |
+| Bucket **público** `productos` | Las fotos de catálogo son públicas: se leen con una URL, sin sesión y sin política de lectura. |
+| **Escritura solo del admin** | Políticas `INSERT`, `UPDATE`, `DELETE` y `SELECT` sobre `storage.objects` con `is_admin()`. Sin ellas, nadie puede subir ni borrar. |
+| Límite de **2 MB** y solo **JPG, PNG y WebP** | Lo aplica el servidor de Storage (`file_size_limit`, `allowed_mime_types`). Validar en el formulario es solo cortesía. |
+| **Sin SVG** | Un SVG puede contener scripts. |
+| Nombre **nuevo (uuid)** en cada subida | El CDN no sirve una versión vieja en caché, y no hace falta el permiso de sobrescribir. |
+| Borrar el archivo al **borrar o reemplazar** el producto | Borrar la fila no borra el archivo: quedaría huérfano. |
+
+Para archivos **privados** (comprobantes, documentos) se usa un bucket no público y enlaces temporales (`createSignedUrl`). Está explicado en el Anexo 5 de la guía.
 
 ## Primer administrador
 
@@ -84,7 +100,9 @@ Es un sitio estático: `npm run build` genera `dist/`.
 - **Render (Static Site):** *Build command* `npm install && npm run build`, *Publish directory* `dist`. Agregá la regla de reescritura `/*` → `/index.html` (ya viene en `public/_redirects`).
 - **Vercel:** detecta Vite solo; `vercel.json` ya trae la reescritura a `/index.html`.
 
-En ambos, configurá solamente `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`. Después, en Supabase: **Authentication → URL Configuration** y agregá la dirección pública del sitio.
+- **Cloudflare (Workers con assets estáticos):** *Workers & Pages → Create application → GitHub*. Necesita un `wrangler.jsonc` con `assets.directory` en `./dist` y `not_found_handling` en `single-page-application`. **No probado todavía en este repo**: la documentación oficial no confirma el fallback de SPA sin un script de Worker ni cómo se cargan las variables de build.
+
+En todos los casos, configurá solamente `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` (se incorporan al compilar: si las cambiás, hay que volver a desplegar). Después, en Supabase: **Authentication → URL Configuration** y agregá la dirección pública del sitio.
 
 > **Demo pública:** los usuarios demo tienen clave conocida, incluido un admin. Desplegá contra una base descartable y no cargues datos reales.
 
@@ -93,7 +111,7 @@ En ambos, configurá solamente `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_
 ```
 supabase/schema.sql      Tablas, trigger, RLS, funciones y vista
 scripts/                 seed.mjs y test-rls.mjs (usan la clave secret, solo en tu máquina)
-src/lib/                 Cliente singleton de Supabase y formatos
+src/lib/                 Cliente singleton de Supabase, formatos e imágenes (Storage)
 src/context/             Sesión con rol (AuthContext) y carrito (CartContext)
 src/hooks/               usePaginado (paginación con .range()) y useDebounce
 src/routes/              ProtectedRoute (guarda de navegación)
@@ -108,3 +126,5 @@ src/features/            auth · tienda · cliente · admin
 | Una consulta devuelve `[]` con estado 200 | RLS está filtrando todo: revisá la política y el rol del usuario. |
 | El carrito muestra un precio y el pedido otro | Es lo esperado: el precio válido es el de la base, no el del navegador. |
 | `SUPABASE_SECRET_KEY tiene caracteres inválidos` | Se copió una versión tapada con puntos; copiala completa desde **Settings → API Keys**. |
+| `new row violates row-level security policy` al subir una imagen | Quien sube no es admin, o falta una política sobre `storage.objects`. |
+| `mime type ... is not supported` | Solo se aceptan JPG, PNG y WebP (`allowed_mime_types` del bucket). |

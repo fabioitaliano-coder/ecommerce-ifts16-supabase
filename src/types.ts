@@ -12,6 +12,7 @@ export interface Producto {
   categoria_id: number;
   vigente_desde: string;
   vigente_hasta: string;
+  imagen_path: string | null;
   categorias?: { nombre: string } | null;
 }
 

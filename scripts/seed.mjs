@@ -1,6 +1,30 @@
 // Carga categorías, productos, descuentos, usuarios y algunos pedidos ficticios.
 // Idempotente: no duplica lo que ya existe.
+import zlib from 'node:zlib';
 import { admin, USUARIOS_DEMO, asegurarUsuario, conSesion, PASSWORD_DEMO } from './_clientes.mjs';
+
+// PNG de color liso generado sin dependencias (imágenes de ejemplo para el catálogo).
+function crc32(buf) {
+  let c, crc = 0xffffffff;
+  for (const byte of buf) { c = (crc ^ byte) & 0xff; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; crc = (crc >>> 8) ^ c; }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+function chunk(tipo, datos) {
+  const largo = Buffer.alloc(4); largo.writeUInt32BE(datos.length);
+  const cuerpo = Buffer.concat([Buffer.from(tipo), datos]);
+  const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(cuerpo));
+  return Buffer.concat([largo, cuerpo, crc]);
+}
+function png(ancho, alto, [r, g, b]) {
+  const fila = ancho * 3 + 1, raw = Buffer.alloc(fila * alto);
+  for (let y = 0; y < alto; y++) for (let x = 0; x < ancho; x++) {
+    const k = 0.75 + 0.25 * (x / ancho); // degradé suave para que no sea un bloque plano
+    const o = y * fila + 1 + x * 3; raw[o] = r * k; raw[o + 1] = g * k; raw[o + 2] = b * k;
+  }
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(ancho, 0); ihdr.writeUInt32BE(alto, 4); ihdr[8] = 8; ihdr[9] = 2;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
+const COLORES = { Ropa: [59, 130, 246], Accesorios: [234, 179, 8], Calzado: [34, 197, 94], 'Tecnología': [168, 85, 247], Hogar: [239, 68, 68] };
 
 const CATALOGO = {
   Ropa: [['Camisa', 25, 40], ['Pantalón', 40, 30], ['Campera', 65, 20]],
@@ -27,6 +51,15 @@ const { data: viejo } = await admin.from('productos').select('id').eq('nombre', 
 if (!viejo) await admin.from('productos').insert({
   nombre: 'Bufanda (fuera de temporada)', precio: 10, stock: 5, categoria_id: ropa.id, vigente_hasta: '2025-12-31',
 });
+
+// Imágenes de ejemplo en Storage (bucket público 'productos'). Cada producto tiene la suya.
+const { data: sinImagen } = await admin.from('productos').select('id, categorias(nombre)').is('imagen_path', null);
+for (const p of sinImagen ?? []) {
+  const ruta = `seed/${p.id}.png`;
+  const { error } = await admin.storage.from('productos').upload(ruta, png(400, 300, COLORES[p.categorias.nombre] ?? [100, 116, 139]), { contentType: 'image/png', upsert: true });
+  if (error) throw error;
+  await admin.from('productos').update({ imagen_path: ruta }).eq('id', p.id);
+}
 
 await admin.from('descuentos').upsert([
   { codigo: 'BIENVENIDA10', porcentaje: 10, monto_minimo: 0 },
