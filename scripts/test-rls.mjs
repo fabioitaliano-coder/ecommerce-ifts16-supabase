@@ -132,9 +132,9 @@ await caso('descuento válido se aplica; inválido o bajo el mínimo falla', asy
   const { data: p } = await c1.from('pedidos').select('total, descuento').eq('id', ok.data).single();
   assert.equal(Number(p.total), 90);
   assert.ok((await comprar(c1, [{ producto_id: prueba.id, cantidad: 1 }], 'NOEXISTE')).error);
-  const { data: taza } = await admin.from('productos').select('id').eq('nombre', 'Taza').single();
-  const bajoMinimo = await comprar(c1, [{ producto_id: taza.id, cantidad: 1 }], 'VERANO20');
-  assert.ok(bajoMinimo.error, 'VERANO20 exige subtotal mínimo de 100');
+  // El producto de prueba cuesta $100: queda muy por debajo del mínimo de VERANO20 ($50.000).
+  const bajoMinimo = await comprar(c1, [{ producto_id: prueba.id, cantidad: 1 }], 'VERANO20');
+  assert.ok(bajoMinimo.error, 'VERANO20 exige un subtotal mínimo');
 });
 await caso('un producto fuera de vigencia no se puede comprar', async () => {
   const { data: v } = await admin.from('productos').select('id').like('nombre', 'Bufanda%').single();

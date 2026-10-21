@@ -7,6 +7,7 @@ export interface Categoria { id: number; nombre: string; descripcion: string | n
 export interface Producto {
   id: number;
   nombre: string;
+  descripcion: string | null;
   precio: number;
   stock: number;
   categoria_id: number;

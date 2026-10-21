@@ -34,12 +34,13 @@ export function Tienda() {
       <h1>Productos</h1>
       <div className="fila">
         <label>Buscar <input type="search" value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Nombre del producto" /></label>
-        <label>Categoría
-          <select value={categoria} onChange={(e) => setCategoria(e.target.value)}>
-            <option value="">Todas</option>
-            {categorias.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-          </select>
-        </label>
+      </div>
+      <div className="pildoras" role="group" aria-label="Filtrar por categoría">
+        <button className={`pildora${categoria === '' ? ' activa' : ''}`} aria-pressed={categoria === ''} onClick={() => setCategoria('')}>Todas</button>
+        {categorias.map((c) => (
+          <button key={c.id} className={`pildora${categoria === String(c.id) ? ' activa' : ''}`} aria-pressed={categoria === String(c.id)}
+            onClick={() => setCategoria(String(c.id))}>{c.nombre}</button>
+        ))}
       </div>
       {error && <p role="alert" className="error">{error}</p>}
       {!cargando && filas.length === 0 && <p>No hay productos para mostrar.</p>}
@@ -52,8 +53,9 @@ export function Tienda() {
               {urlImagen(p.imagen_path)
                 ? <img className="foto" src={urlImagen(p.imagen_path)!} alt={p.nombre} loading="lazy" width={400} height={300} />
                 : <div className="foto vacia" aria-hidden="true">Sin imagen</div>}
-              <small>{p.categorias?.nombre}</small>
+              <span className="etiqueta">{p.categorias?.nombre}</span>
               <h2>{p.nombre}</h2>
+              {p.descripcion && <p className="descripcion">{p.descripcion}</p>}
               <p className="precio">{dinero(p.precio)}</p>
               <p className={agotado ? 'error' : 'stock'}>{agotado ? 'Sin stock' : p.stock <= 5 ? `¡Últimas ${p.stock} unidades!` : `${p.stock} disponibles`}</p>
               <button onClick={() => agregar(p)} disabled={agotado || enCarrito >= p.stock}>

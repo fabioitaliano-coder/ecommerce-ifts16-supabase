@@ -6,7 +6,7 @@ import { dinero, hoy } from '../../lib/formato';
 import { borrarImagen, subirImagen, urlImagen, validarImagen } from '../../lib/imagenes';
 import type { Categoria, Producto } from '../../types';
 
-const VACIO = { id: 0, nombre: '', precio: '', stock: '', categoria_id: '', vigente_desde: '2000-01-01', vigente_hasta: '2099-12-31', imagen_path: '' };
+const VACIO = { id: 0, nombre: '', descripcion: '', precio: '', stock: '', categoria_id: '', vigente_desde: '2000-01-01', vigente_hasta: '2099-12-31', imagen_path: '' };
 
 export function AdminProductos() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -33,7 +33,7 @@ export function AdminProductos() {
   const cerrar = () => { setForm(null); setArchivo(null); setError(null); };
 
   const editar = (p: Producto) => abrir({
-    id: p.id, nombre: p.nombre, precio: String(p.precio), stock: String(p.stock), categoria_id: String(p.categoria_id),
+    id: p.id, nombre: p.nombre, descripcion: p.descripcion ?? '', precio: String(p.precio), stock: String(p.stock), categoria_id: String(p.categoria_id),
     vigente_desde: p.vigente_desde, vigente_hasta: p.vigente_hasta, imagen_path: p.imagen_path ?? '',
   });
 
@@ -53,7 +53,7 @@ export function AdminProductos() {
       // 1) Primero se sube la imagen nueva (si hay); recién después se guarda la fila.
       if (archivo) nuevaRuta = await subirImagen(archivo);
       const datos = {
-        nombre: form.nombre.trim(), precio: Number(form.precio), stock: Number(form.stock),
+        nombre: form.nombre.trim(), descripcion: form.descripcion.trim() || null, precio: Number(form.precio), stock: Number(form.stock),
         categoria_id: Number(form.categoria_id), vigente_desde: form.vigente_desde, vigente_hasta: form.vigente_hasta,
         imagen_path: nuevaRuta ?? (form.imagen_path || null),
       };
@@ -94,6 +94,7 @@ export function AdminProductos() {
         <form className="tarjeta formulario ancho" onSubmit={guardar}>
           <h2>{form.id ? 'Editar producto' : 'Nuevo producto'}</h2>
           <label>Nombre <input required {...campo('nombre')} /></label>
+          <label>Descripción <input maxLength={200} {...campo('descripcion')} /></label>
           <label>Precio <input type="number" min="0" step="0.01" required {...campo('precio')} /></label>
           <label>Stock <input type="number" min="0" step="1" required {...campo('stock')} /></label>
           <label>Categoría

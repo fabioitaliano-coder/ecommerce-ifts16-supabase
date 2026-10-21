@@ -1,76 +1,100 @@
-// Carga categorías, productos, descuentos, usuarios y algunos pedidos ficticios.
-// Idempotente: no duplica lo que ya existe.
-import zlib from 'node:zlib';
+// Carga el catálogo de demo (categorías, productos con imagen, descuentos, usuarios y pedidos).
+// Idempotente: si lo corrés dos veces no duplica nada.
+//   npm run seed             agrega lo que falta
+//   npm run seed -- --reset  BORRA pedidos y productos de la demo y los vuelve a cargar
+// Todo es ficticio (nombres, precios y descripciones): no representa una tienda real.
+import fs from 'node:fs';
 import { admin, USUARIOS_DEMO, asegurarUsuario, conSesion, PASSWORD_DEMO } from './_clientes.mjs';
 
-// PNG de color liso generado sin dependencias (imágenes de ejemplo para el catálogo).
-function crc32(buf) {
-  let c, crc = 0xffffffff;
-  for (const byte of buf) { c = (crc ^ byte) & 0xff; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; crc = (crc >>> 8) ^ c; }
-  return (crc ^ 0xffffffff) >>> 0;
-}
-function chunk(tipo, datos) {
-  const largo = Buffer.alloc(4); largo.writeUInt32BE(datos.length);
-  const cuerpo = Buffer.concat([Buffer.from(tipo), datos]);
-  const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(cuerpo));
-  return Buffer.concat([largo, cuerpo, crc]);
-}
-function png(ancho, alto, [r, g, b]) {
-  const fila = ancho * 3 + 1, raw = Buffer.alloc(fila * alto);
-  for (let y = 0; y < alto; y++) for (let x = 0; x < ancho; x++) {
-    const k = 0.75 + 0.25 * (x / ancho); // degradé suave para que no sea un bloque plano
-    const o = y * fila + 1 + x * 3; raw[o] = r * k; raw[o + 1] = g * k; raw[o + 2] = b * k;
-  }
-  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(ancho, 0); ihdr.writeUInt32BE(alto, 4); ihdr[8] = 8; ihdr[9] = 2;
-  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
-}
-const COLORES = { Ropa: [59, 130, 246], Accesorios: [234, 179, 8], Calzado: [34, 197, 94], 'Tecnología': [168, 85, 247], Hogar: [239, 68, 68] };
-
-const CATALOGO = {
-  Ropa: [['Camisa', 25, 40], ['Pantalón', 40, 30], ['Campera', 65, 20]],
-  Accesorios: [['Mochila', 45, 25], ['Gorra', 12, 60], ['Cinturón', 18, 35]],
-  Calzado: [['Zapatillas', 80, 30], ['Botas', 95, 15], ['Sandalias', 30, 40]],
-  Tecnología: [['Auriculares', 55, 25], ['Cargador USB-C', 15, 80], ['Mouse inalámbrico', 22, 45]],
-  Hogar: [['Lámpara LED', 20, 35], ['Taza', 8, 100], ['Almohadón', 14, 50]],
+const CATEGORIAS = {
+  Ropa: 'Indumentaria para todos los días',
+  Calzado: 'Zapatillas, botas y sandalias',
+  Accesorios: 'Mochilas, gorras, lentes y relojes',
+  'Tecnología': 'Auriculares, periféricos y cargadores',
+  Hogar: 'Objetos para la casa',
 };
 
-for (const [nombre, productos] of Object.entries(CATALOGO)) {
-  await admin.from('categorias').upsert({ nombre, descripcion: `Categoría ${nombre}` }, { onConflict: 'nombre' });
-  const { data: cat } = await admin.from('categorias').select('id').eq('nombre', nombre).single();
-  for (const [prod, precio, stock] of productos) {
-    const { data: existe } = await admin.from('productos').select('id').eq('nombre', prod).maybeSingle();
-    if (!existe) {
-      const { error } = await admin.from('productos').insert({ nombre: prod, precio, stock, categoria_id: cat.id });
-      if (error) throw error;
-    }
-  }
-}
-// Un producto vencido, para mostrar la vigencia en el catálogo.
-const { data: ropa } = await admin.from('categorias').select('id').eq('nombre', 'Ropa').single();
-const { data: viejo } = await admin.from('productos').select('id').eq('nombre', 'Bufanda (fuera de temporada)').maybeSingle();
-if (!viejo) await admin.from('productos').insert({
-  nombre: 'Bufanda (fuera de temporada)', precio: 10, stock: 5, categoria_id: ropa.id, vigente_hasta: '2025-12-31',
-});
+// slug = nombre del archivo en assets/productos/<slug>.png (ver assets/generador/)
+const CATALOGO = [
+  ['remera', 'Ropa', 'Remera de algodón peinado', 12900, 60, 'Remera lisa de algodón 100 % peinado, corte regular.'],
+  ['buzo', 'Ropa', 'Buzo canguro con capucha', 38900, 35, 'Buzo de friza con capucha y bolsillo canguro, interior suave.'],
+  ['jean', 'Ropa', 'Jean clásico recto', 42500, 40, 'Jean de denim rígido, tiro medio y corte recto.'],
+  ['campera', 'Ropa', 'Campera de abrigo acolchada', 89900, 18, 'Campera acolchada liviana con cierre y cuello alto.'],
+  ['zapatillas', 'Calzado', 'Zapatillas urbanas', 79900, 30, 'Zapatillas livianas con suela de goma y plantilla acolchada.'],
+  ['botas', 'Calzado', 'Botas de cuero', 96500, 14, 'Botas de cuero vacuno con puntera reforzada.'],
+  ['sandalias', 'Calzado', 'Sandalias de verano', 29900, 45, 'Sandalias con tiras ajustables y suela antideslizante.'],
+  ['mocasines', 'Calzado', 'Mocasines clásicos', 58900, 22, 'Mocasines de cuero sintético con suela flexible.'],
+  ['mochila', 'Accesorios', 'Mochila urbana 20 L', 45900, 28, 'Mochila de 20 litros con bolsillo frontal y espalda acolchada.'],
+  ['gorra', 'Accesorios', 'Gorra con visera', 14900, 70, 'Gorra de gabardina con cierre regulable.'],
+  ['lentes', 'Accesorios', 'Lentes de sol con filtro UV', 32500, 38, 'Lentes con filtro UV400 y marco liviano.'],
+  ['reloj', 'Accesorios', 'Reloj analógico', 67900, 12, 'Reloj de pulsera analógico resistente al agua.'],
+  ['auriculares', 'Tecnología', 'Auriculares inalámbricos', 54900, 25, 'Auriculares Bluetooth con micrófono y diadema ajustable.'],
+  ['mouse', 'Tecnología', 'Mouse inalámbrico', 18900, 50, 'Mouse óptico inalámbrico con receptor USB.'],
+  ['cargador', 'Tecnología', 'Cargador USB-C 20 W', 12500, 80, 'Cargador de pared de carga rápida con salida USB-C.'],
+  ['parlante', 'Tecnología', 'Parlante Bluetooth portátil', 49900, 20, 'Parlante portátil con conexión Bluetooth y asa de transporte.'],
+  ['lampara', 'Hogar', 'Lámpara de mesa', 27900, 26, 'Lámpara de mesa con pantalla de tela, ideal para escritorio.'],
+  ['taza', 'Hogar', 'Taza de cerámica', 6900, 100, 'Taza de cerámica de 350 ml, apta para lavavajillas.'],
+  ['almohadon', 'Hogar', 'Almohadón decorativo', 11900, 55, 'Almohadón de 45 × 45 cm con relleno hipoalergénico.'],
+  ['maceta', 'Hogar', 'Maceta con planta', 15500, 33, 'Planta de interior con maceta de cerámica.'],
+];
 
-// Imágenes de ejemplo en Storage (bucket público 'productos'). Cada producto tiene la suya.
-const { data: sinImagen } = await admin.from('productos').select('id, categorias(nombre)').is('imagen_path', null);
-for (const p of sinImagen ?? []) {
-  const ruta = `seed/${p.id}.png`;
-  const { error } = await admin.storage.from('productos').upload(ruta, png(400, 300, COLORES[p.categorias.nombre] ?? [100, 116, 139]), { contentType: 'image/png', upsert: true });
+const hoy = new Date().toISOString().slice(0, 10);
+
+if (process.argv.includes('--reset')) {
+  // Borra los datos de demo (pedidos y productos) y los archivos de Storage que cargó este seed.
+  await admin.from('pedidos').delete().not('id', 'is', null);
+  await admin.from('productos').delete().not('id', 'is', null);
+  const { data: archivos } = await admin.storage.from('productos').list('seed', { limit: 1000 });
+  if (archivos?.length) await admin.storage.from('productos').remove(archivos.map((a) => `seed/${a.name}`));
+  console.log('Datos de demo anteriores borrados.');
+}
+
+// 1) Categorías
+for (const [nombre, descripcion] of Object.entries(CATEGORIAS)) {
+  const { error } = await admin.from('categorias').upsert({ nombre, descripcion }, { onConflict: 'nombre' });
   if (error) throw error;
-  await admin.from('productos').update({ imagen_path: ruta }).eq('id', p.id);
+}
+const { data: cats } = await admin.from('categorias').select('id, nombre');
+const idCategoria = Object.fromEntries(cats.map((c) => [c.nombre, c.id]));
+
+// 2) Productos + imagen en Storage (bucket público 'productos'; la base guarda solo la ruta)
+for (const [slug, categoria, nombre, precio, stock, descripcion] of CATALOGO) {
+  const ruta = `seed/${slug}.png`;
+  const archivo = fs.readFileSync(new URL(`../assets/productos/${slug}.png`, import.meta.url));
+  const { error: errImg } = await admin.storage.from('productos').upload(ruta, archivo, { contentType: 'image/png', upsert: true });
+  if (errImg) throw errImg;
+
+  const { data: existe } = await admin.from('productos').select('id').eq('nombre', nombre).maybeSingle();
+  const fila = { nombre, descripcion, precio, categoria_id: idCategoria[categoria], imagen_path: ruta };
+  const { error } = existe
+    ? await admin.from('productos').update(fila).eq('id', existe.id)
+    : await admin.from('productos').insert({ ...fila, stock });
+  if (error) throw error;
+}
+// Un producto vencido, para mostrar la vigencia: no aparece en la tienda, sí en el admin.
+const { data: vencido } = await admin.from('productos').select('id').like('nombre', 'Bufanda de lana%').maybeSingle();
+if (!vencido) {
+  const { error } = await admin.from('productos').insert({
+    nombre: 'Bufanda de lana (fuera de temporada)', descripcion: 'Bufanda tejida de lana; ya no está a la venta.', precio: 9900, stock: 5,
+    categoria_id: idCategoria.Ropa, vigente_hasta: '2025-12-31',
+  });
+  if (error) throw error;
 }
 
-await admin.from('descuentos').upsert([
+// 3) Descuentos: uno general y otro que exige una compra mínima
+const { error: errDesc } = await admin.from('descuentos').upsert([
   { codigo: 'BIENVENIDA10', porcentaje: 10, monto_minimo: 0 },
-  { codigo: 'VERANO20', porcentaje: 20, monto_minimo: 100 },
+  { codigo: 'VERANO20', porcentaje: 20, monto_minimo: 50000 },
 ], { onConflict: 'codigo' });
+if (errDesc) throw errDesc;
 
+// 4) Usuarios demo
 for (const u of USUARIOS_DEMO) await asegurarUsuario(u);
 
+// 5) Pedidos de ejemplo, hechos a través de crear_pedido() como los haría un cliente real
 const { count } = await admin.from('pedidos').select('*', { count: 'exact', head: true });
 if (!count) {
-  const { data: prods } = await admin.from('productos').select('id').lte('vigente_desde', new Date().toISOString().slice(0, 10)).gte('vigente_hasta', new Date().toISOString().slice(0, 10)).limit(8);
+  const { data: prods } = await admin.from('productos').select('id').lte('vigente_desde', hoy).gte('vigente_hasta', hoy).order('nombre').limit(10);
   const estados = ['pendiente', 'confirmado', 'entregado', 'cancelado'];
   for (const [i, email] of ['cliente1@demo.test', 'cliente2@demo.test'].entries()) {
     const sesion = await conSesion(email);
@@ -82,4 +106,4 @@ if (!count) {
     }
   }
 }
-console.log(`Listo. Admin: admin@demo.test / ${PASSWORD_DEMO} · Clientes: cliente1@demo.test, cliente2@demo.test`);
+console.log(`Listo: ${CATALOGO.length} productos con imagen. Admin: admin@demo.test / ${PASSWORD_DEMO} · Clientes: cliente1@demo.test, cliente2@demo.test`);

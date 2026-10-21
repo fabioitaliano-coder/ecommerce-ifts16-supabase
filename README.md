@@ -61,12 +61,13 @@ Completá `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_SECRE
 
 ```bash
 npm install
-npm run seed       # categorías, productos, 2 descuentos, 3 usuarios demo y pedidos
+npm run seed       # 5 categorías, 20 productos con imagen, 2 descuentos, 3 usuarios demo y pedidos
+npm run seed -- --reset   # BORRA pedidos y productos de la demo y los vuelve a cargar
 npm run test:rls   # 26 pruebas que intentan romper la seguridad, el checkout y Storage
 npm run dev        # http://localhost:5173
 ```
 
-Usuarios demo (ficticios): `admin@demo.test`, `cliente1@demo.test` y `cliente2@demo.test`, todos con la contraseña `demo1234`. Códigos de descuento: `BIENVENIDA10` (10 %) y `VERANO20` (20 %, compra mínima de 100).
+Usuarios demo (ficticios): `admin@demo.test`, `cliente1@demo.test` y `cliente2@demo.test`, todos con la contraseña `demo1234`. Códigos de descuento: `BIENVENIDA10` (10 %) y `VERANO20` (20 %, compra mínima de $50.000).
 
 ## Imágenes con Supabase Storage
 
@@ -82,6 +83,19 @@ Las fotos de los productos viven en un **bucket**, no en la base de datos. La ta
 | Borrar el archivo al **borrar o reemplazar** el producto | Borrar la fila no borra el archivo: quedaría huérfano. |
 
 Para archivos **privados** (comprobantes, documentos) se usa un bucket no público y enlaces temporales (`createSignedUrl`). Está explicado en el Anexo 5 de la guía.
+
+## Catálogo de demo e imágenes
+
+El seed carga una tienda ficticia con **5 categorías y 4 productos por categoría** (Ropa, Calzado, Accesorios, Tecnología y Hogar), con precios en pesos, una descripción corta y una imagen. También agrega un producto **vencido** (la bufanda) para mostrar la vigencia: no aparece en la tienda, pero el admin lo ve.
+
+Las imágenes son **ilustraciones originales** con un estilo común (una paleta por categoría, mismo encuadre y misma sombra), no fotos. Están en `assets/productos/` y el seed las sube al bucket. Se generaron con `assets/generador/generar-imagenes.mjs`, que usa `sharp` solo para eso (no es una dependencia del proyecto):
+
+```bash
+npm install --no-save sharp
+node assets/generador/generar-imagenes.mjs assets/productos
+```
+
+Para usar fotos reales, el admin puede reemplazar cualquier imagen desde **Administración → Productos → Editar**. Si las vas a publicar, verificá que tengas la licencia.
 
 ## Primer administrador
 

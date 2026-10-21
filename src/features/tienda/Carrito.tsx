@@ -35,7 +35,10 @@ export function Carrito() {
       p_items: items.map((i) => ({ producto_id: i.producto_id, cantidad: i.cantidad })),
       p_codigo: aplicado,
     });
-    if (error) setError(error.message || 'No se pudo completar la compra.');
+    // P0002 = producto inexistente o fuera de vigencia (p. ej. un carrito guardado de antes de que cambie el catálogo).
+    if (error) setError(error.code === 'P0002'
+      ? 'Algún producto de tu carrito ya no está disponible. Quitalo o vaciá el carrito y volvé a elegir.'
+      : error.message || 'No se pudo completar la compra.');
     else { vaciar(); navigate('/mis-pedidos', { state: { creado: true } }); }
     setEnviando(false);
   };
