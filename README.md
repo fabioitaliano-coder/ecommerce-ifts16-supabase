@@ -159,7 +159,14 @@ Cada pedido a Supabase cuesta tiempo de red (medimos ~0,3 s entre Argentina y un
 | **Carga diferida del panel de administración** | `src/App.tsx` | La tienda descarga menos código. |
 | **El rol no bloquea rutas comunes** | `src/context/AuthContext.tsx` | Mis pedidos no espera una consulta extra. |
 | **Caché de un año para JS/CSS con hash** | `vercel.json` | Vercel los servía con `max-age=0, must-revalidate`. |
-| **Imágenes WebP 640×480 con caché de un año** | `assets/`, `scripts/seed.mjs` | De ~640 KB a ~150 KB para las 20 imágenes. |
+| **Imágenes WebP 640×480 con caché de un año** | `assets/`, `scripts/seed.mjs` | De ~640 KB a ~360 KB para las 75 imágenes. |
+| **Esqueleto con brillo y carga prioritaria** de las 8 imágenes de la primera pantalla | `src/components/ImagenProducto.tsx` | No hay cuadros grises fijos; el espacio está reservado y no hay saltos. |
+| **Calentamiento del CDN** al cargar el seed | `scripts/seed.mjs` | La primera petición de una imagen nueva tardaba ~1,2 s (el CDN la pide al servidor de origen); ya calentada, ~0,1 s. |
+| **Precarga de a una y después de cargar la página** | `src/lib/catalogo.ts` | Cinco consultas en paralelo enlentecían a todas (~860 ms cada una contra ~265 ms una sola). |
+| **Rol recordado y revalidado en segundo plano** | `src/context/AuthContext.tsx` | El panel de administración no espera la consulta del rol (~300 ms menos). La seguridad sigue siendo RLS. |
+| **Caché en memoria del panel** (solo memoria: son datos privados) | `src/hooks/usePaginado.ts` | Volver a una pestaña del panel es instantáneo; se borra al cerrar sesión. |
+| **Librerías en archivos propios** (`react`, `supabase`) | `vite.config.ts` | Tras un despliegue, quien ya visitó el sitio descarga ~10 KB de código de la app en lugar de ~140 KB. |
+| **Recuperación ante versiones nuevas** | `src/lib/cargaPerezosa.ts`, `src/components/LimiteDeErrores.tsx`, `vercel.json` | Una pestaña abierta durante un despliegue recarga sola en vez de quedar en blanco. |
 
 Medido contra un proyecto en Oregon (app local, red real): los productos de la primera visita pasaron de ~500 ms a ~300 ms; una visita repetida **no hace ningún pedido** para pintar la tienda; y cambiar de categoría pasó de ~415 ms a ~5 ms.
 

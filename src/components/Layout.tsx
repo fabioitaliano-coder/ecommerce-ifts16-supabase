@@ -20,9 +20,9 @@ export function Layout() {
         </nav>
         <div className="sesion">
           <label className="interruptor" title="Muestra u oculta las notas que explican qué hace cada pantalla">
-            <input type="checkbox" role="switch" checked={clase.activo} onChange={clase.alternar} />
+            <input type="checkbox" role="switch" aria-label="Notas explicativas" checked={clase.activo} onChange={clase.alternar} />
             <span className="pista" aria-hidden="true"><span className="perilla" /></span>
-            <span>Notas explicativas</span>
+            <span className="texto-interruptor">Notas explicativas</span>
           </label>
           {user ? (
             <>

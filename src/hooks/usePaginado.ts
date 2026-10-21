@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { hoy } from '../lib/formato';
+import { guardar, leer } from '../lib/cache';
 
 interface Opciones {
   select?: string;
@@ -13,16 +14,23 @@ interface Opciones {
   soloVigentes?: boolean;
 }
 
+interface Resultado<T> { filas: T[]; total: number }
+
 // Concepto · Paginación por offset: .range(desde, hasta) es inclusivo en ambos extremos y
 // { count: 'exact' } devuelve el total sin traer todas las filas. Es el patrón del Anexo 9.
 export function usePaginado<T>(tabla: string, o: Opciones) {
   const porPagina = o.porPagina ?? 10;
-  const [filas, setFilas] = useState<T[]>([]);
-  const [total, setTotal] = useState(0);
   const [pagina, setPagina] = useState(1);
-  const [cargando, setCargando] = useState(true);
+  const [version, setVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [cargandoRed, setCargandoRed] = useState(true);
   const clave = JSON.stringify([o.filtros, o.busqueda, o.soloVigentes]);
+  // Concepto · Caché SOLO en memoria (se pierde al recargar y al cerrar sesión): estos datos son privados.
+  const claveCache = `admin:${tabla}:${o.select ?? '*'}:${o.orden}:${o.asc ?? true}:${clave}:${pagina}`;
+  const enCache = leer<Resultado<T>>(claveCache);
+  const filas = enCache?.datos.filas ?? [];
+  const total = enCache?.datos.total ?? 0;
+  const cargando = !enCache && cargandoRed;
 
   useEffect(() => { setPagina(1); }, [clave]);
 
@@ -41,10 +49,10 @@ export function usePaginado<T>(tabla: string, o: Opciones) {
 
     const { data, count, error } = await q;
     if (error) setError('No se pudieron cargar los datos.');
-    else { setError(null); setFilas((data as T[]) ?? []); setTotal(count ?? 0); }
-    setCargando(false);
+    else { setError(null); guardar(claveCache, { filas: (data as T[]) ?? [], total: count ?? 0 }, false); setVersion((v) => v + 1); }
+    setCargandoRed(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabla, pagina, porPagina, clave, o.select, o.orden, o.asc]);
+  }, [tabla, pagina, porPagina, clave, o.select, o.orden, o.asc, claveCache]);
 
   useEffect(() => { recargar(); }, [recargar]);
 
@@ -53,5 +61,6 @@ export function usePaginado<T>(tabla: string, o: Opciones) {
     if (!cargando && filas.length === 0 && pagina > 1) setPagina(pagina - 1);
   }, [cargando, filas.length, pagina]);
 
+  void version; // fuerza el redibujado cuando llegan datos nuevos
   return { filas, total, pagina, setPagina, porPagina, cargando, error, recargar };
 }

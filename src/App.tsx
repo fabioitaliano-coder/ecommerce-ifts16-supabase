@@ -1,4 +1,5 @@
-import { lazy } from 'react';
+import { cargaPerezosa } from './lib/cargaPerezosa';
+import { LimiteDeErrores } from './components/LimiteDeErrores';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
@@ -10,15 +11,16 @@ import { RegisterForm } from './features/auth/RegisterForm';
 import { Tienda } from './features/tienda/Tienda';
 import { Carrito } from './features/tienda/Carrito';
 import { MisPedidos } from './features/cliente/MisPedidos';
-const AdminLayout = lazy(() => import('./features/admin/AdminLayout').then((m) => ({ default: m.AdminLayout })));
-const AdminPedidos = lazy(() => import('./features/admin/AdminPedidos').then((m) => ({ default: m.AdminPedidos })));
-const AdminProductos = lazy(() => import('./features/admin/AdminProductos').then((m) => ({ default: m.AdminProductos })));
-const AdminCategorias = lazy(() => import('./features/admin/AdminCategorias').then((m) => ({ default: m.AdminCategorias })));
-const AdminDescuentos = lazy(() => import('./features/admin/AdminDescuentos').then((m) => ({ default: m.AdminDescuentos })));
-const AdminClientes = lazy(() => import('./features/admin/AdminClientes').then((m) => ({ default: m.AdminClientes })));
+const AdminLayout = cargaPerezosa(() => import('./features/admin/AdminLayout').then((m) => ({ default: m.AdminLayout })));
+const AdminPedidos = cargaPerezosa(() => import('./features/admin/AdminPedidos').then((m) => ({ default: m.AdminPedidos })));
+const AdminProductos = cargaPerezosa(() => import('./features/admin/AdminProductos').then((m) => ({ default: m.AdminProductos })));
+const AdminCategorias = cargaPerezosa(() => import('./features/admin/AdminCategorias').then((m) => ({ default: m.AdminCategorias })));
+const AdminDescuentos = cargaPerezosa(() => import('./features/admin/AdminDescuentos').then((m) => ({ default: m.AdminDescuentos })));
+const AdminClientes = cargaPerezosa(() => import('./features/admin/AdminClientes').then((m) => ({ default: m.AdminClientes })));
 
 export default function App() {
   return (
+    <LimiteDeErrores>
     <AuthProvider>
       <CartProvider>
        <ModoClaseProvider>
@@ -53,5 +55,6 @@ export default function App() {
        </ModoClaseProvider>
       </CartProvider>
     </AuthProvider>
+    </LimiteDeErrores>
   );
 }

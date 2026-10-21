@@ -62,6 +62,18 @@ if (!vencido) {
   if (error) throw error;
 }
 
+// Calentar el CDN: la primera vez que se pide un archivo nuevo, el CDN lo trae del servidor de origen
+// (medido: ~1,2 s); desde la segunda, ~0,08 s. Pidiendo cada imagen una vez acá, el primer visitante
+// real ya la encuentra lista en el CDN más cercano a esta conexión.
+{
+  const base = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/productos/seed`;
+  const t0 = Date.now();
+  for (let i = 0; i < CATALOGO.length; i += 10) {
+    await Promise.all(CATALOGO.slice(i, i + 10).map((p) => fetch(`${base}/${p.slug}.webp`).then((r) => r.arrayBuffer())));
+  }
+  console.log(`CDN calentado: ${CATALOGO.length} imágenes en ${((Date.now() - t0) / 1000).toFixed(1)} s.`);
+}
+
 // Limpieza: archivos de seed/ que ya no corresponden a ningún producto (por ejemplo, las versiones .png).
 const vigentes = new Set(CATALOGO.map((p) => `${p.slug}.webp`));
 const { data: enStorage } = await admin.storage.from('productos').list('seed', { limit: 1000 });

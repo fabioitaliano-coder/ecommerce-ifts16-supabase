@@ -1,5 +1,5 @@
 import { supabasePublico } from './supabase';
-import { cuandoEsteLibre, precargar } from './cache';
+import { cuandoEsteLibre, precargar, precargarYEsperar } from './cache';
 import { hoy } from './formato';
 import type { Categoria, Producto, Promo } from '../types';
 
@@ -80,8 +80,23 @@ export function precargarTipo(categoria: string, tipo: string) {
   precargar(claveProductos(f), () => consultarProductos(f), true);
 }
 
-// En un momento ocioso se trae la primera página de cada categoría: al tocar un botón
-// los productos ya están en caché y aparecen sin esperar a la red.
+// Concepto · La precarga NO debe competir con lo que el usuario está esperando. Por eso:
+// 1) espera a que la página termine de cargar (incluidas las imágenes visibles),
+// 2) espera a que el navegador esté libre, y
+// 3) trae las categorías de a UNA, con una pausa: varias a la vez enlentecían a todas
+//    (medido: ~860 ms cada una en paralelo contra ~265 ms una sola).
 export function precargarTodasLasCategorias(categorias: { id: number }[]) {
-  return cuandoEsteLibre(() => categorias.forEach((c) => precargarCategoria(String(c.id))));
+  let cancelado = false;
+  const pausa = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const arrancar = async () => {
+    for (const c of categorias) {
+      if (cancelado) return;
+      const f: FiltroTienda = { categoria: String(c.id), tipo: '', busqueda: '', pagina: 1 };
+      await precargarYEsperar(claveProductos(f), () => consultarProductos(f), true);
+      await pausa(250);
+    }
+  };
+  const esperarCarga = document.readyState === 'complete' ? Promise.resolve() : new Promise<void>((r) => addEventListener('load', () => r(), { once: true }));
+  esperarCarga.then(() => { if (!cancelado) cuandoEsteLibre(arrancar); });
+  return () => { cancelado = true; };
 }

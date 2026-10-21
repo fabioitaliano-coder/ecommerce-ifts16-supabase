@@ -7,6 +7,7 @@ import { NotaClase } from '../../components/NotaClase';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useDatosCacheados } from '../../hooks/useDatosCacheados';
 import { PaginationControls } from '../../components/PaginationControls';
+import { ImagenProducto } from '../../components/ImagenProducto';
 import { precargar } from '../../lib/cache';
 import {
   CLAVE_CATEGORIAS, CLAVE_PROMOS, CLAVE_TIPOS, POR_PAGINA, claveProductos, consultarCategorias, consultarProductos, consultarPromos, consultarTipos,
@@ -35,11 +36,10 @@ export function Tienda() {
   const filas = prod.datos?.filas ?? [];
   const total = prod.datos?.total ?? 0;
 
-  // Con las categorías a mano, se precarga la primera página de cada una cuando el navegador está libre.
+  // Con las categorías a mano, se precarga la primera página de cada una (de a una, sin molestar).
   useEffect(() => {
     if (!cats.datos) return;
-    const id = precargarTodasLasCategorias(cats.datos);
-    return () => { if ('cancelIdleCallback' in window && typeof id === 'number') window.cancelIdleCallback(id); };
+    return precargarTodasLasCategorias(cats.datos);
   }, [cats.datos]);
 
   // Y se precarga la página siguiente de lo que se está mirando.
@@ -82,30 +82,33 @@ export function Tienda() {
           </div>
         )}
 
-      <div className="fila">
-        <label>Buscar <input type="search" value={texto} onChange={(e) => { setTexto(e.target.value); setPagina(1); }} placeholder="Nombre, marca o tipo" /></label>
-      </div>
-      <div className="pildoras" role="group" aria-label="Filtrar por categoría">
-        <button className={`pildora${categoria === '' ? ' activa' : ''}`} aria-pressed={categoria === ''} onClick={() => elegirCategoria('')}>Todas</button>
-        {(cats.datos ?? []).map((c) => {
-          const id = String(c.id);
-          return (
-            <button key={c.id} className={`pildora${categoria === id ? ' activa' : ''}`} aria-pressed={categoria === id}
-              onPointerEnter={() => precargarCategoria(id)} onFocus={() => precargarCategoria(id)}
-              onClick={() => elegirCategoria(id)}>{c.nombre}</button>
-          );
-        })}
-      </div>
-      {tiposDeLaCategoria.length > 1 && (
-        <div className="pildoras secundarias" role="group" aria-label="Filtrar por tipo de producto">
-          <button className={`pildora chica${tipo === '' ? ' activa' : ''}`} aria-pressed={tipo === ''} onClick={() => { setTipo(''); setPagina(1); }}>Todos los tipos</button>
-          {tiposDeLaCategoria.map((t) => (
-            <button key={t.tipo} className={`pildora chica${tipo === t.tipo ? ' activa' : ''}`} aria-pressed={tipo === t.tipo}
-              onPointerEnter={() => precargarTipo(categoria, t.tipo)} onFocus={() => precargarTipo(categoria, t.tipo)}
-              onClick={() => { setTipo(t.tipo); setPagina(1); }}>{t.tipo}</button>
-          ))}
+      <div className="herramientas">
+        <div className="fila buscador">
+          <label>Buscar <input type="search" value={texto} onChange={(e) => { setTexto(e.target.value); setPagina(1); }} placeholder="Nombre, marca o tipo" /></label>
         </div>
-      )}
+        <div className="pildoras" role="group" aria-label="Filtrar por categoría">
+          <button className={`pildora${categoria === '' ? ' activa' : ''}`} aria-pressed={categoria === ''} onClick={() => elegirCategoria('')}>Todas</button>
+          {(cats.datos ?? []).map((c) => {
+            const id = String(c.id);
+            return (
+              <button key={c.id} className={`pildora${categoria === id ? ' activa' : ''}`} aria-pressed={categoria === id}
+                onPointerEnter={() => precargarCategoria(id)} onFocus={() => precargarCategoria(id)}
+                onClick={() => elegirCategoria(id)}>{c.nombre}</button>
+            );
+          })}
+        </div>
+        {tiposDeLaCategoria.length > 1 && (
+          <div className="pildoras secundarias" role="group" aria-label="Filtrar por tipo de producto">
+            <button className={`pildora chica${tipo === '' ? ' activa' : ''}`} aria-pressed={tipo === ''} onClick={() => { setTipo(''); setPagina(1); }}>Todos los tipos</button>
+            {tiposDeLaCategoria.map((t) => (
+              <button key={t.tipo} className={`pildora chica${tipo === t.tipo ? ' activa' : ''}`} aria-pressed={tipo === t.tipo}
+                onPointerEnter={() => precargarTipo(categoria, t.tipo)} onFocus={() => precargarTipo(categoria, t.tipo)}
+                onClick={() => { setTipo(t.tipo); setPagina(1); }}>{t.tipo}</button>
+            ))}
+          </div>
+        )}
+
+      </div>
 
       {prod.error && <p role="alert" className="error">No se pudieron cargar los productos. Probá de nuevo en unos segundos.</p>}
       {!prod.cargando && !prod.error && filas.length === 0 && <p>No hay productos para mostrar.</p>}
@@ -125,9 +128,8 @@ export function Tienda() {
             <article key={p.id} className="tarjeta producto">
               <div className="marco">
                 {url
-                  ? <img className="foto" src={url} alt={p.nombre} width={640} height={480}
-                      loading={i < 4 ? 'eager' : 'lazy'} fetchPriority={i === 0 ? 'high' : 'auto'} decoding="async" />
-                  : <div className="foto vacia" aria-hidden="true">Sin imagen</div>}
+                  ? <ImagenProducto src={url} alt={p.nombre} prioridad={i === 0 ? 'alta' : i < 8 ? 'normal' : 'baja'} />
+                  : <div className="marco-img lista"><span className="sin-imagen">Sin imagen</span></div>}
                 {enCarrito > 0 && <span className="en-carrito">{enCarrito} en carrito</span>}
               </div>
               <div className="insignias-tarjeta">

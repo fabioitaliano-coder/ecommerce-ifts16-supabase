@@ -30,7 +30,7 @@ export function esFresco(clave: string): boolean {
   return Boolean(e && Date.now() - e.guardado < FRESCO_MS);
 }
 
-function guardar(clave: string, datos: unknown, persistir: boolean) {
+export function guardar(clave: string, datos: unknown, persistir: boolean) {
   const entrada = { datos, guardado: Date.now() };
   memoria.set(clave, entrada);
   if (!persistir) return;
@@ -51,6 +51,12 @@ export function pedir<T>(clave: string, cargador: () => Promise<T>, persistir = 
 // Precarga silenciosa: no hace nada si ya hay datos frescos.
 export function precargar<T>(clave: string, cargador: () => Promise<T>, persistir = false) {
   if (!esFresco(clave)) pedir(clave, cargador, persistir).catch(() => { /* se reintentará al usarlo */ });
+}
+
+// Igual que precargar, pero devuelve una promesa: permite encadenar precargas de a una.
+export async function precargarYEsperar<T>(clave: string, cargador: () => Promise<T>, persistir = false) {
+  if (esFresco(clave)) return;
+  try { await pedir(clave, cargador, persistir); } catch { /* se reintentará al usarlo */ }
 }
 
 // Tras un cambio (una compra, o el admin editando el catálogo) los datos guardados ya no valen.
