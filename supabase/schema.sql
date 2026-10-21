@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS public.productos (
   id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nombre         TEXT NOT NULL CHECK (length(trim(nombre)) > 0),
   descripcion    TEXT,
+  marca          TEXT,
+  tipo           TEXT,
   precio         NUMERIC(10,2) NOT NULL CHECK (precio >= 0),
   stock          INT NOT NULL CHECK (stock >= 0),
   categoria_id   BIGINT NOT NULL REFERENCES public.categorias(id) ON DELETE RESTRICT,
@@ -68,7 +70,11 @@ CREATE TABLE IF NOT EXISTS public.productos (
 -- Para bases creadas antes de agregar imágenes (CREATE TABLE IF NOT EXISTS no agrega columnas).
 ALTER TABLE public.productos ADD COLUMN IF NOT EXISTS imagen_path TEXT;
 ALTER TABLE public.productos ADD COLUMN IF NOT EXISTS descripcion TEXT;
+ALTER TABLE public.productos ADD COLUMN IF NOT EXISTS marca TEXT;
+ALTER TABLE public.productos ADD COLUMN IF NOT EXISTS tipo TEXT;
 CREATE INDEX IF NOT EXISTS productos_categoria_idx ON public.productos (categoria_id);
+-- Filtrar por categoría y tipo (por ejemplo Tecnología > Celulares) usa este índice.
+CREATE INDEX IF NOT EXISTS productos_categoria_tipo_idx ON public.productos (categoria_id, tipo);
 
 CREATE TABLE IF NOT EXISTS public.descuentos (
   id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

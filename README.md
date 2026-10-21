@@ -69,9 +69,9 @@ npm run dev        # http://localhost:5173
 
 Usuarios demo (ficticios): `admin@demo.test`, `cliente1@demo.test` y `cliente2@demo.test`, todos con la contraseña `demo1234`. Códigos de descuento: `BIENVENIDA10` (10 %) y `VERANO20` (20 %, compra mínima de $50.000), ambos públicos, y `VIP30` (30 %, mínimo $100.000), privado.
 
-## Modo clase
+## Notas explicativas
 
-Arriba a la derecha hay un botón **Modo clase**. Activo, muestra notas que explican qué consulta hace cada pantalla y qué política RLS interviene (catálogo, carrito, administración), y en el login ofrece botones para completar los usuarios de demo. Se puede ocultar y la preferencia se recuerda.
+Arriba a la derecha hay un interruptor **Notas explicativas**. Activo, muestra notas que explican qué consulta hace cada pantalla y qué política RLS interviene (catálogo, carrito, registro, administración). Se puede ocultar y la preferencia se recuerda.
 
 ## Imágenes con Supabase Storage
 
@@ -90,9 +90,15 @@ Para archivos **privados** (comprobantes, documentos) se usa un bucket no públi
 
 ## Catálogo de demo e imágenes
 
-El seed carga una tienda ficticia con **5 categorías y 4 productos por categoría** (Ropa, Calzado, Accesorios, Tecnología y Hogar), con precios en pesos, una descripción corta y una imagen. También agrega un producto **vencido** (la bufanda) para mostrar la vigencia: no aparece en la tienda, pero el admin lo ve.
+El seed carga una tienda ficticia con **5 categorías, 23 tipos de producto, 44 marcas y 75 productos**. Cada tipo tiene varias marcas y modelos (por ejemplo, *Auriculares* de Sony, JBL, Xiaomi y Philips; *Celulares* de Samsung, Motorola y Xiaomi), con precios en pesos, una descripción corta y una imagen. También agrega un producto **vencido** (una bufanda) para mostrar la vigencia: no aparece en la tienda, pero el admin lo ve.
 
-Las imágenes son **ilustraciones originales** con un estilo común (una paleta por categoría, mismo encuadre y misma sombra), no fotos. Están en `assets/productos/` (WebP de 640×480, unos 10 KB cada una) y el seed las sube al bucket con una caché de un año. Se generaron con `assets/generador/generar-imagenes.mjs`, que usa `sharp` solo para eso (no es una dependencia del proyecto):
+> Las marcas y los modelos se usan solo para dar variedad a la demo. Los nombres de modelo, los precios y las descripciones son **inventados** y no representan productos reales.
+
+En la tienda se puede filtrar por **categoría**, luego por **tipo** (por ejemplo, Tecnología → Celulares) y buscar por nombre, marca o tipo.
+
+Todo sale de un único archivo, [`assets/catalogo.json`](assets/catalogo.json): lo leen el seed y el generador de imágenes. Para agregar productos, se agregan ahí y se vuelve a correr el generador y el seed.
+
+Las imágenes son **ilustraciones originales** con un estilo común (una paleta por categoría y un color por modelo, mismo encuadre y misma sombra), no fotos. Están en `assets/productos/` (WebP de 640×480, unos 5 KB cada una) y el seed las sube al bucket con una caché de un año. Se generan con `assets/generador/generar-imagenes.mjs`, que usa `sharp` solo para eso (no es una dependencia del proyecto):
 
 ```bash
 npm install --no-save sharp
@@ -100,6 +106,22 @@ node assets/generador/generar-imagenes.mjs assets/productos   # genera .webp
 ```
 
 Para usar fotos reales, el admin puede reemplazar cualquier imagen desde **Administración → Productos → Editar**. Si las vas a publicar, verificá que tengas la licencia.
+
+## Usuarios y códigos de prueba
+
+Todos son ficticios y la contraseña es `demo1234`. En el login, las **notas explicativas** traen botones para completar el formulario.
+
+| Usuario | Rol | Para qué sirve |
+| :--- | :--- | :--- |
+| `admin@demo.test` | admin | Panel de administración (pedidos, productos, categorías, descuentos y clientes). |
+| `cliente1@demo.test` | cliente | Comprar y ver sus pedidos. |
+| `cliente2@demo.test` | cliente | Comprobar que no ve los pedidos de `cliente1`. |
+
+| Código | Descuento | Visibilidad |
+| :--- | :--- | :--- |
+| `BIENVENIDA10` | 10 %, sin mínimo | Público (se muestra en la tienda) |
+| `VERANO20` | 20 %, compra mínima de $50.000 | Público |
+| `VIP30` | 30 %, compra mínima de $100.000 | Privado: solo se usa si se conoce |
 
 ## Primer administrador
 
@@ -167,3 +189,4 @@ src/features/            auth · tienda · cliente · admin
 | `SUPABASE_SECRET_KEY tiene caracteres inválidos` | Se copió una versión tapada con puntos; copiala completa desde **Settings → API Keys**. |
 | `new row violates row-level security policy` al subir una imagen | Quien sube no es admin, o falta una política sobre `storage.objects`. |
 | `mime type ... is not supported` | Solo se aceptan JPG, PNG y WebP (`allowed_mime_types` del bucket). |
+| `email rate limit exceeded` al registrarse | El servicio de mails integrado de Supabase permite muy pocos envíos por hora (2 por hora para todo el proyecto) y cada alta con confirmación envía uno. Para una demo: en **Authentication** desactivá *Confirm email*, o configurá un SMTP propio. Los límites se ven en **Authentication → Rate Limits**. |

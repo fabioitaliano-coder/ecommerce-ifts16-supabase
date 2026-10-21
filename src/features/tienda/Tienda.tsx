@@ -9,8 +9,8 @@ import { useDatosCacheados } from '../../hooks/useDatosCacheados';
 import { PaginationControls } from '../../components/PaginationControls';
 import { precargar } from '../../lib/cache';
 import {
-  CLAVE_CATEGORIAS, CLAVE_PROMOS, POR_PAGINA, claveProductos, consultarCategorias, consultarProductos, consultarPromos,
-  precargarCategoria, precargarTodasLasCategorias, type FiltroTienda,
+  CLAVE_CATEGORIAS, CLAVE_PROMOS, CLAVE_TIPOS, POR_PAGINA, claveProductos, consultarCategorias, consultarProductos, consultarPromos, consultarTipos,
+  precargarCategoria, precargarTipo, precargarTodasLasCategorias, type FiltroTienda,
 } from '../../lib/catalogo';
 import { dinero } from '../../lib/formato';
 import { urlImagen } from '../../lib/imagenes';
@@ -20,12 +20,15 @@ export function Tienda() {
   const { items, agregar, cantidadTotal, codigo, setCodigo } = useCart();
   const promos = useDatosCacheados(CLAVE_PROMOS, consultarPromos, true);
   const [categoria, setCategoria] = useState('');
+  const [tipo, setTipo] = useState('');
   const [texto, setTexto] = useState('');
   const [pagina, setPagina] = useState(1);
   const busqueda = useDebounce(texto);
 
-  const filtro: FiltroTienda = { categoria, busqueda, pagina };
+  const filtro: FiltroTienda = { categoria, tipo, busqueda, pagina };
   const cats = useDatosCacheados(CLAVE_CATEGORIAS, consultarCategorias, true);
+  const tipos = useDatosCacheados(CLAVE_TIPOS, consultarTipos, true);
+  const tiposDeLaCategoria = categoria ? (tipos.datos ?? []).filter((t) => String(t.categoria_id) === categoria) : [];
   // La búsqueda por texto no se guarda en localStorage (hay infinitas combinaciones).
   const prod = useDatosCacheados(claveProductos(filtro), () => consultarProductos(filtro), !busqueda);
 
@@ -47,7 +50,7 @@ export function Tienda() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prod.datos]);
 
-  const elegirCategoria = (id: string) => { setCategoria(id); setPagina(1); };
+  const elegirCategoria = (id: string) => { setCategoria(id); setTipo(''); setPagina(1); };
 
   return (
     <div className="tienda-layout">
@@ -80,7 +83,7 @@ export function Tienda() {
         )}
 
       <div className="fila">
-        <label>Buscar <input type="search" value={texto} onChange={(e) => { setTexto(e.target.value); setPagina(1); }} placeholder="Nombre del producto" /></label>
+        <label>Buscar <input type="search" value={texto} onChange={(e) => { setTexto(e.target.value); setPagina(1); }} placeholder="Nombre, marca o tipo" /></label>
       </div>
       <div className="pildoras" role="group" aria-label="Filtrar por categoría">
         <button className={`pildora${categoria === '' ? ' activa' : ''}`} aria-pressed={categoria === ''} onClick={() => elegirCategoria('')}>Todas</button>
@@ -93,6 +96,16 @@ export function Tienda() {
           );
         })}
       </div>
+      {tiposDeLaCategoria.length > 1 && (
+        <div className="pildoras secundarias" role="group" aria-label="Filtrar por tipo de producto">
+          <button className={`pildora chica${tipo === '' ? ' activa' : ''}`} aria-pressed={tipo === ''} onClick={() => { setTipo(''); setPagina(1); }}>Todos los tipos</button>
+          {tiposDeLaCategoria.map((t) => (
+            <button key={t.tipo} className={`pildora chica${tipo === t.tipo ? ' activa' : ''}`} aria-pressed={tipo === t.tipo}
+              onPointerEnter={() => precargarTipo(categoria, t.tipo)} onFocus={() => precargarTipo(categoria, t.tipo)}
+              onClick={() => { setTipo(t.tipo); setPagina(1); }}>{t.tipo}</button>
+          ))}
+        </div>
+      )}
 
       {prod.error && <p role="alert" className="error">No se pudieron cargar los productos. Probá de nuevo en unos segundos.</p>}
       {!prod.cargando && !prod.error && filas.length === 0 && <p>No hay productos para mostrar.</p>}
@@ -123,6 +136,7 @@ export function Tienda() {
                   {agotado ? 'Sin stock' : p.stock <= 5 ? `Últimas ${p.stock}` : `Stock: ${p.stock}`}
                 </span>
               </div>
+              {p.marca && <span className="marca">{p.marca}</span>}
               <h2>{p.nombre}</h2>
               <p className="descripcion">{p.descripcion}</p>
               <p className="precio">{dinero(p.precio)}</p>

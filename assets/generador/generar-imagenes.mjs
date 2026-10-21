@@ -18,6 +18,23 @@ const P = {
 };
 const INK = '#2B2F3A', WHITE = '#FFFFFF';
 
+// Colores de modelo: cada producto elige uno. El fondo sigue siendo el de su categoría,
+// así la serie mantiene la coherencia aunque haya varios modelos del mismo objeto.
+const COLORES = {
+  negro:    { main: '#303541', dark: '#161A23', light: '#7B8494' },
+  blanco:   { main: '#F3F5F9', dark: '#A9B3C4', light: '#FFFFFF' },
+  gris:     { main: '#7A8394', dark: '#464E5E', light: '#BCC3CF' },
+  azul:     { main: '#2F6FED', dark: '#1E4DB7', light: '#8DB2FA' },
+  celeste:  { main: '#38B6F0', dark: '#0C7FB5', light: '#A5E3FB' },
+  rojo:     { main: '#E5484D', dark: '#B42A30', light: '#F29A9D' },
+  naranja:  { main: '#F97316', dark: '#C2410C', light: '#FDBA74' },
+  amarillo: { main: '#E8A317', dark: '#B77A0B', light: '#F6CB6A' },
+  verde:    { main: '#2F9E62', dark: '#1F7447', light: '#7ACB9C' },
+  violeta:  { main: '#7048D8', dark: '#4F2FA8', light: '#A58BEB' },
+  rosa:     { main: '#EC6AA6', dark: '#B83C78', light: '#F6A8CB' },
+  marron:   { main: '#9A6B3F', dark: '#6B4423', light: '#C99A6B' },
+};
+
 const wrap = (cat, inner) => {
   const p = P[cat];
   return `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
@@ -210,31 +227,53 @@ ${[0, 1, 2, 3, 4].flatMap((r) => [0, 1, 2, 3, 4, 5, 6].map((c) => `<circle cx="$
 <path d="M330 330 L470 330 L452 454 L348 454 Z" fill="${p.main}"/>
 <rect x="316" y="312" width="168" height="32" rx="10" fill="${p.dark}"/>
 <path d="M346 350 L356 450 L376 450 L368 350Z" fill="${p.light}" opacity=".5"/>`,
+  // ------------------------------------------------- celular, tablet, teclado
+  celular: (p) => `
+<rect x="326" y="148" width="148" height="312" rx="30" fill="${p.main}"/>
+<rect x="470" y="230" width="6" height="46" rx="3" fill="${p.dark}"/>
+<rect x="340" y="164" width="120" height="280" rx="18" fill="#161A23"/>
+<rect x="386" y="174" width="28" height="8" rx="4" fill="#0b0e14"/>
+${[0, 1, 2, 3].flatMap((r) => [0, 1, 2].map((c) => `<rect x="${356 + c * 36}" y="${204 + r * 46}" width="28" height="28" rx="8" fill="${[p.light, p.main, WHITE, p.dark][(r + c) % 4]}" opacity="${(r + c) % 2 ? '.9' : '.7'}"/>`)).join('')}
+<rect x="362" y="400" width="76" height="26" rx="13" fill="${WHITE}" opacity=".18"/>
+<path d="M342 170 L400 164 L346 250Z" fill="${WHITE}" opacity=".07"/>`,
+
+  tablet: (p) => `
+<rect x="238" y="170" width="324" height="250" rx="26" fill="${p.main}"/>
+<rect x="254" y="186" width="292" height="218" rx="12" fill="#161A23"/>
+<rect x="272" y="204" width="120" height="80" rx="10" fill="${p.light}" opacity=".85"/>
+<rect x="404" y="204" width="124" height="36" rx="8" fill="${WHITE}" opacity=".5"/>
+<rect x="404" y="250" width="124" height="34" rx="8" fill="${p.main}" opacity=".9"/>
+<rect x="272" y="298" width="256" height="14" rx="7" fill="${WHITE}" opacity=".35"/>
+<rect x="272" y="324" width="180" height="14" rx="7" fill="${WHITE}" opacity=".22"/>
+<circle cx="400" cy="195" r="3.5" fill="#0b0e14"/>
+<path d="M254 190 L360 186 L258 300Z" fill="${WHITE}" opacity=".06"/>`,
+
+  teclado: (p) => `
+<rect x="222" y="300" width="356" height="148" rx="18" fill="${p.main}"/>
+<rect x="222" y="300" width="356" height="22" rx="18" fill="${p.dark}" opacity=".25"/>
+${[0, 1, 2].flatMap((r) => [...Array(11)].map((_, c) => `<rect x="${238 + c * 31 + (r === 1 ? 8 : r === 2 ? 16 : 0)}" y="${330 + r * 32}" width="26" height="24" rx="6" fill="${WHITE}" opacity="${(c + r) % 3 === 0 ? '.95' : '.8'}"/>`)).join('')}
+<rect x="290" y="418" width="220" height="22" rx="8" fill="${WHITE}" opacity=".85"/>
+<rect x="238" y="418" width="46" height="22" rx="8" fill="${p.light}"/><rect x="516" y="418" width="46" height="22" rx="8" fill="${p.light}"/>`,
 };
 
-// slug -> categoría (la paleta depende de la categoría)
-const CATALOGO = {
-  remera: 'Ropa', buzo: 'Ropa', jean: 'Ropa', campera: 'Ropa',
-  zapatillas: 'Calzado', botas: 'Calzado', sandalias: 'Calzado', mocasines: 'Calzado',
-  mochila: 'Accesorios', gorra: 'Accesorios', lentes: 'Accesorios', reloj: 'Accesorios',
-  auriculares: 'Tecnología', mouse: 'Tecnología', cargador: 'Tecnología', parlante: 'Tecnología',
-  lampara: 'Hogar', taza: 'Hogar', almohadon: 'Hogar', maceta: 'Hogar',
-};
+// Fuente única de datos: assets/catalogo.json (la usan también el seed y la tienda).
+const { productos } = JSON.parse(fs.readFileSync(new URL('../catalogo.json', import.meta.url), 'utf8'));
 
 const sheet = [];
-for (const [slug, cat] of Object.entries(CATALOGO)) {
-  const svg = wrap(cat, art[slug](P[cat]));
+for (const prod of productos) {
+  const paleta = { ...P[prod.categoria], ...(COLORES[prod.color] ?? {}) };
+  const svg = wrap(prod.categoria, art[prod.arte](paleta));
   const png = await sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toBuffer();
   // WebP a 640x480: una tarjeta muestra la imagen a ~300 px, así que alcanza incluso en pantallas retina.
   const webp = await sharp(png).resize(640, 480).webp({ quality: 82 }).toBuffer();
-  fs.writeFileSync(path.join(OUT, `${slug}.webp`), webp);
-  sheet.push({ slug, png, bytes: webp.length });
+  fs.writeFileSync(path.join(OUT, `${prod.slug}.webp`), webp);
+  sheet.push({ slug: prod.slug, png, bytes: webp.length });
 }
-// Hoja de contacto 5 x 4 para revisar la consistencia de un vistazo.
-const w = 320, h = 240;
+// Hoja de contacto para revisar la consistencia de un vistazo (10 columnas).
+const w = 240, h = 180, cols = 10, filas = Math.ceil(sheet.length / cols);
 const comps = await Promise.all(sheet.map(async (s, i) => ({
-  input: await sharp(s.png).resize(w, h).toBuffer(), left: (i % 5) * w, top: Math.floor(i / 5) * h,
+  input: await sharp(s.png).resize(w, h).toBuffer(), left: (i % cols) * w, top: Math.floor(i / cols) * h,
 })));
-await sharp({ create: { width: w * 5, height: h * 4, channels: 3, background: '#fff' } }).composite(comps).png().toFile(path.join(OUT, '_hoja.png'));
+await sharp({ create: { width: w * cols, height: h * filas, channels: 3, background: '#fff' } }).composite(comps).png().toFile(path.join(OUT, '_hoja.png'));
 const tam = sheet.map((s) => s.bytes);
-console.log(`${sheet.length} imágenes | tamaño mínimo ${Math.min(...tam)} B, máximo ${Math.max(...tam)} B`);
+console.log(`${sheet.length} imágenes | tamaño mínimo ${Math.min(...tam)} B, máximo ${Math.max(...tam)} B, total ${Math.round(tam.reduce((a, b) => a + b, 0) / 1024)} KB`);

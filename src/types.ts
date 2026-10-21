@@ -8,6 +8,8 @@ export interface Producto {
   id: number;
   nombre: string;
   descripcion: string | null;
+  marca: string | null;
+  tipo: string | null;
   precio: number;
   stock: number;
   categoria_id: number;

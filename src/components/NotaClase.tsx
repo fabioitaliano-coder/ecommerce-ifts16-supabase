@@ -5,8 +5,8 @@ export function NotaClase({ titulo, children }: { titulo: string; children: Reac
   const { activo } = useModoClase();
   if (!activo) return null;
   return (
-    <aside className="nota-clase" aria-label={`Nota de clase: ${titulo}`}>
-      <strong>Modo clase · {titulo}</strong>
+    <aside className="nota-clase" aria-label={`Nota explicativa: ${titulo}`}>
+      <strong>Nota · {titulo}</strong>
       <div>{children}</div>
     </aside>
   );

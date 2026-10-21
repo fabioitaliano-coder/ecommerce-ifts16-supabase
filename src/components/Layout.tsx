@@ -19,9 +19,11 @@ export function Layout() {
           {role === 'admin' && <NavLink to="/admin">Administración</NavLink>}
         </nav>
         <div className="sesion">
-          <button className="secundario chico" onClick={clase.alternar} aria-pressed={clase.activo} title="Muestra u oculta las notas explicativas">
-            Modo clase: {clase.activo ? 'sí' : 'no'}
-          </button>
+          <label className="interruptor" title="Muestra u oculta las notas que explican qué hace cada pantalla">
+            <input type="checkbox" role="switch" checked={clase.activo} onChange={clase.alternar} />
+            <span className="pista" aria-hidden="true"><span className="perilla" /></span>
+            <span>Notas explicativas</span>
+          </label>
           {user ? (
             <>
               <small>{user.email}{role ? ` · ${role}` : ''}</small>

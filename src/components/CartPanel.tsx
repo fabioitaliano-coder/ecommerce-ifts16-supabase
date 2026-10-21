@@ -66,7 +66,7 @@ export function CartPanel() {
       <div className="encabezado-panel">
         <div>
           <h2>Carrito</h2>
-          <p className="nota">Se guarda en <code>localStorage</code>.</p>
+          <p className="nota">El carrito vive en este navegador. El pedido se guarda en Supabase al confirmar.</p>
         </div>
         <button className="secundario chico peligro" onClick={vaciar} disabled={items.length === 0}>Vaciar</button>
       </div>

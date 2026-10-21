@@ -124,3 +124,18 @@ button.enlace { background:none; border:0; padding:0; color:var(--error); font-s
 .casilla { display:flex !important; grid-template-columns:none; align-items:start; gap:.5rem; font-size:.85rem; }
 .casilla input { margin-top:.2rem; }
 @media (max-width: 999px) { main { padding-bottom:5rem; } }
+
+/* Interruptor "Notas explicativas" */
+.interruptor { display:inline-flex !important; grid-template-columns:none; align-items:center; gap:.5rem; font-size:.85rem; cursor:pointer; user-select:none; }
+.interruptor input { position:absolute; opacity:0; width:1px; height:1px; }
+.interruptor .pista { width:36px; height:20px; border-radius:999px; background:#cbd5e1; position:relative; transition:background .15s; flex:none; }
+.interruptor .perilla { position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.3); transition:transform .15s; }
+.interruptor input:checked + .pista { background:var(--azul); }
+.interruptor input:checked + .pista .perilla { transform:translateX(16px); }
+.interruptor input:focus-visible + .pista { outline:2px solid var(--azul); outline-offset:2px; }
+@media (prefers-reduced-motion: reduce) { .interruptor .pista, .interruptor .perilla { transition:none; } }
+/* Marca y filtros por tipo */
+.marca { margin-top:.1rem; font-size:.72rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#64748b; }
+.pildoras.secundarias { margin-top:-.4rem; }
+.pildora.chica { padding:.2rem .7rem; font-size:.8rem; background:#f8fafc; }
+.pildora.chica.activa { background:#1e293b; border-color:#1e293b; color:#fff; }
