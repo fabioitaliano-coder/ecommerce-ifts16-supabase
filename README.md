@@ -100,7 +100,6 @@ Es un sitio estático: `npm run build` genera `dist/`.
 - **Render (Static Site):** *Build command* `npm install && npm run build`, *Publish directory* `dist`. Agregá la regla de reescritura `/*` → `/index.html` (ya viene en `public/_redirects`).
 - **Vercel:** detecta Vite solo; `vercel.json` ya trae la reescritura a `/index.html`.
 
-- **Cloudflare (Workers con assets estáticos):** *Workers & Pages → Create application → GitHub*. Necesita un `wrangler.jsonc` con `assets.directory` en `./dist` y `not_found_handling` en `single-page-application`. **No probado todavía en este repo**: la documentación oficial no confirma el fallback de SPA sin un script de Worker ni cómo se cargan las variables de build.
 
 En todos los casos, configurá solamente `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` (se incorporan al compilar: si las cambiás, hay que volver a desplegar). Después, en Supabase: **Authentication → URL Configuration** y agregá la dirección pública del sitio.
 
