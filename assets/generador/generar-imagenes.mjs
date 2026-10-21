@@ -1,4 +1,4 @@
-// Ilustraciones planas de productos con un estilo común. Salida: PNG 800x600.
+// Ilustraciones planas de productos con un estilo común. Salida: WebP 640x480 (liviano) + hoja de contacto.
 // Uso: npm install --no-save sharp && node assets/generador/generar-imagenes.mjs assets/productos
 // Genera una imagen por producto y una hoja de contacto (_hoja.png) para revisar la consistencia.
 import sharp from 'sharp';
@@ -225,8 +225,10 @@ const sheet = [];
 for (const [slug, cat] of Object.entries(CATALOGO)) {
   const svg = wrap(cat, art[slug](P[cat]));
   const png = await sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toBuffer();
-  fs.writeFileSync(path.join(OUT, `${slug}.png`), png);
-  sheet.push({ slug, png });
+  // WebP a 640x480: una tarjeta muestra la imagen a ~300 px, así que alcanza incluso en pantallas retina.
+  const webp = await sharp(png).resize(640, 480).webp({ quality: 82 }).toBuffer();
+  fs.writeFileSync(path.join(OUT, `${slug}.webp`), webp);
+  sheet.push({ slug, png, bytes: webp.length });
 }
 // Hoja de contacto 5 x 4 para revisar la consistencia de un vistazo.
 const w = 320, h = 240;
@@ -234,5 +236,5 @@ const comps = await Promise.all(sheet.map(async (s, i) => ({
   input: await sharp(s.png).resize(w, h).toBuffer(), left: (i % 5) * w, top: Math.floor(i / 5) * h,
 })));
 await sharp({ create: { width: w * 5, height: h * 4, channels: 3, background: '#fff' } }).composite(comps).png().toFile(path.join(OUT, '_hoja.png'));
-const tam = sheet.map((s) => s.png.length);
+const tam = sheet.map((s) => s.bytes);
 console.log(`${sheet.length} imágenes | tamaño mínimo ${Math.min(...tam)} B, máximo ${Math.max(...tam)} B`);

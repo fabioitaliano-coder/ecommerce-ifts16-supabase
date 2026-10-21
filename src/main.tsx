@@ -1,13 +1,15 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import App from './App';
+import { configurado } from './lib/supabase';
+import { precargarCatalogo } from './lib/catalogo';
 import './index.css';
 
 const raiz = createRoot(document.getElementById('root')!);
-const configurado = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
 
 if (!configurado) {
   // Concepto · Las variables VITE_* se incorporan al COMPILAR. Si el hosting no las tenía
-  // cuando se hizo el build, el cliente de Supabase no puede crearse y, sin este aviso,
+  // cuando se hizo el build, no hay con qué conectarse a Supabase y, sin este aviso,
   // la página quedaría en blanco sin explicación.
   raiz.render(
     <main>
@@ -24,6 +26,7 @@ if (!configurado) {
     </main>,
   );
 } else {
-  // Import dinámico: App (y el cliente de Supabase) solo se cargan si hay configuración.
-  import('./App').then(({ default: App }) => raiz.render(<StrictMode><App /></StrictMode>));
+  // Los pedidos del catálogo salen YA, antes de que React termine de arrancar.
+  precargarCatalogo();
+  raiz.render(<StrictMode><App /></StrictMode>);
 }

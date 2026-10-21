@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { dinero } from '../../lib/formato';
+import { invalidar } from '../../lib/cache';
 
 export function Carrito() {
   const { user } = useAuth();
@@ -39,7 +40,7 @@ export function Carrito() {
     if (error) setError(error.code === 'P0002'
       ? 'Algún producto de tu carrito ya no está disponible. Quitalo o vaciá el carrito y volvé a elegir.'
       : error.message || 'No se pudo completar la compra.');
-    else { vaciar(); navigate('/mis-pedidos', { state: { creado: true } }); }
+    else { vaciar(); invalidar('tienda:'); navigate('/mis-pedidos', { state: { creado: true } }); } // el stock cambió
     setEnviando(false);
   };
 

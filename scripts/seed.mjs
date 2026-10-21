@@ -14,7 +14,7 @@ const CATEGORIAS = {
   Hogar: 'Objetos para la casa',
 };
 
-// slug = nombre del archivo en assets/productos/<slug>.png (ver assets/generador/)
+// slug = nombre del archivo en assets/productos/<slug>.webp (ver assets/generador/)
 const CATALOGO = [
   ['remera', 'Ropa', 'Remera de algodón peinado', 12900, 60, 'Remera lisa de algodón 100 % peinado, corte regular.'],
   ['buzo', 'Ropa', 'Buzo canguro con capucha', 38900, 35, 'Buzo de friza con capucha y bolsillo canguro, interior suave.'],
@@ -59,9 +59,13 @@ const idCategoria = Object.fromEntries(cats.map((c) => [c.nombre, c.id]));
 
 // 2) Productos + imagen en Storage (bucket público 'productos'; la base guarda solo la ruta)
 for (const [slug, categoria, nombre, precio, stock, descripcion] of CATALOGO) {
-  const ruta = `seed/${slug}.png`;
-  const archivo = fs.readFileSync(new URL(`../assets/productos/${slug}.png`, import.meta.url));
-  const { error: errImg } = await admin.storage.from('productos').upload(ruta, archivo, { contentType: 'image/png', upsert: true });
+  const ruta = `seed/${slug}.webp`;
+  const archivo = fs.readFileSync(new URL(`../assets/productos/${slug}.webp`, import.meta.url));
+  // cacheControl: sin esto Storage responde "no-cache" y el navegador vuelve a pedir cada imagen
+  // en cada visita. Un año alcanza porque cada archivo tiene su propio nombre.
+  const { error: errImg } = await admin.storage.from('productos').upload(ruta, archivo, {
+    contentType: 'image/webp', upsert: true, cacheControl: '31536000',
+  });
   if (errImg) throw errImg;
 
   const { data: existe } = await admin.from('productos').select('id').eq('nombre', nombre).maybeSingle();
@@ -80,6 +84,12 @@ if (!vencido) {
   });
   if (error) throw error;
 }
+
+// Limpieza: archivos de seed/ que ya no corresponden a ningún producto (por ejemplo, las versiones .png).
+const vigentes = new Set(CATALOGO.map(([slug]) => `${slug}.webp`));
+const { data: enStorage } = await admin.storage.from('productos').list('seed', { limit: 1000 });
+const huerfanos = (enStorage ?? []).filter((a) => !vigentes.has(a.name)).map((a) => `seed/${a.name}`);
+if (huerfanos.length) await admin.storage.from('productos').remove(huerfanos);
 
 // 3) Descuentos: uno general y otro que exige una compra mínima
 const { error: errDesc } = await admin.from('descuentos').upsert([

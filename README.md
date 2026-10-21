@@ -88,11 +88,11 @@ Para archivos **privados** (comprobantes, documentos) se usa un bucket no públi
 
 El seed carga una tienda ficticia con **5 categorías y 4 productos por categoría** (Ropa, Calzado, Accesorios, Tecnología y Hogar), con precios en pesos, una descripción corta y una imagen. También agrega un producto **vencido** (la bufanda) para mostrar la vigencia: no aparece en la tienda, pero el admin lo ve.
 
-Las imágenes son **ilustraciones originales** con un estilo común (una paleta por categoría, mismo encuadre y misma sombra), no fotos. Están en `assets/productos/` y el seed las sube al bucket. Se generaron con `assets/generador/generar-imagenes.mjs`, que usa `sharp` solo para eso (no es una dependencia del proyecto):
+Las imágenes son **ilustraciones originales** con un estilo común (una paleta por categoría, mismo encuadre y misma sombra), no fotos. Están en `assets/productos/` (WebP de 640×480, unos 10 KB cada una) y el seed las sube al bucket con una caché de un año. Se generaron con `assets/generador/generar-imagenes.mjs`, que usa `sharp` solo para eso (no es una dependencia del proyecto):
 
 ```bash
 npm install --no-save sharp
-node assets/generador/generar-imagenes.mjs assets/productos
+node assets/generador/generar-imagenes.mjs assets/productos   # genera .webp
 ```
 
 Para usar fotos reales, el admin puede reemplazar cualquier imagen desde **Administración → Productos → Editar**. Si las vas a publicar, verificá que tengas la licencia.
@@ -118,6 +118,28 @@ Es un sitio estático: `npm run build` genera `dist/`.
 En todos los casos, configurá solamente `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` (se incorporan al compilar: si las cambiás, hay que volver a desplegar). Después, en Supabase: **Authentication → URL Configuration** y agregá la dirección pública del sitio.
 
 > **Demo pública:** los usuarios demo tienen clave conocida, incluido un admin. Desplegá contra una base descartable y no cargues datos reales.
+
+## Rendimiento: qué se hizo y por qué
+
+Cada pedido a Supabase cuesta tiempo de red (medimos ~0,3 s entre Argentina y una región de la costa oeste de Estados Unidos; la base en sí responde en menos de 1 ms). Por eso la optimización principal es **no esperar a la red**:
+
+| Técnica | Dónde | Qué logra |
+| :--- | :--- | :--- |
+| **Caché con revalidación en segundo plano** (*stale-while-revalidate*) | `src/lib/cache.ts`, `src/hooks/useDatosCacheados.ts` | Se muestra al instante lo guardado y se actualiza en silencio. Solo datos públicos del catálogo. |
+| **Precarga antes de que React arranque** | `src/main.tsx`, `src/lib/catalogo.ts` | Los pedidos salen mientras se descarga el JavaScript. |
+| **Precarga de cada categoría** (en tiempo ocioso y al pasar el mouse) y de la página siguiente | `src/features/tienda/Tienda.tsx` | Cambiar de categoría ya no toca la red. |
+| **Cliente público sin sesión** | `src/lib/supabase.ts` (`supabasePublico`) | El catálogo no espera a restaurar o renovar un token. |
+| **`preconnect` al backend** | `index.html` | La conexión TCP+TLS se abre en paralelo a la descarga del JS. |
+| **Carga diferida del panel de administración** | `src/App.tsx` | La tienda descarga menos código. |
+| **El rol no bloquea rutas comunes** | `src/context/AuthContext.tsx` | Mis pedidos no espera una consulta extra. |
+| **Caché de un año para JS/CSS con hash** | `vercel.json` | Vercel los servía con `max-age=0, must-revalidate`. |
+| **Imágenes WebP 640×480 con caché de un año** | `assets/`, `scripts/seed.mjs` | De ~640 KB a ~150 KB para las 20 imágenes. |
+
+Medido contra un proyecto en Oregon (app local, red real): los productos de la primera visita pasaron de ~500 ms a ~300 ms; una visita repetida **no hace ningún pedido** para pintar la tienda; y cambiar de categoría pasó de ~415 ms a ~5 ms.
+
+**Cuidados al cachear:** la caché dura 1 minuto como "fresca" y se invalida sola cuando el stock cambia (tras una compra) o el admin edita el catálogo. Nunca se guardan datos privados (pedidos, perfiles). La precarga hace más pedidos en segundo plano por cada visita nueva; es una decisión consciente a cambio de velocidad.
+
+**La palanca más grande es la región:** al crear el proyecto en Supabase, elegí la más cercana a tus usuarios (para Argentina, South America – São Paulo). La región no se puede cambiar después.
 
 ## Estructura
 

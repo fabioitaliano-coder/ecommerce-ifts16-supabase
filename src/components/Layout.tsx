@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -18,7 +19,7 @@ export function Layout() {
         <div className="sesion">
           {user ? (
             <>
-              <small>{user.email} · {role}</small>
+              <small>{user.email}{role ? ` · ${role}` : ''}</small>
               <button className="secundario" onClick={signOut}>Salir</button>
             </>
           ) : (
@@ -26,7 +27,7 @@ export function Layout() {
           )}
         </div>
       </header>
-      <main><Outlet /></main>
+      <main><Suspense fallback={<p className="centro">Cargando…</p>}><Outlet /></Suspense></main>
     </>
   );
 }

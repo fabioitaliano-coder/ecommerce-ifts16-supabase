@@ -7,8 +7,18 @@ import { createClient } from '@supabase/supabase-js';
 const url = import.meta.env.VITE_SUPABASE_URL;
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-if (!url || !publishableKey) {
-  throw new Error('Faltan VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY. Copiá .env.example a .env.');
-}
+// main.tsx muestra un aviso si falta la configuración. Los valores de relleno evitan que
+// createClient() lance un error al importar este módulo (y que la página quede en blanco).
+export const configurado = Boolean(url && publishableKey);
+const urlEfectiva = url || 'https://sin-configurar.invalid';
+const claveEfectiva = publishableKey || 'sin-configurar';
 
-export const supabase = createClient(url, publishableKey);
+// Cliente con sesión: login, carrito, pedidos y administración.
+export const supabase = createClient(urlEfectiva, claveEfectiva);
+
+// Concepto · Cliente público: solo lee el catálogo (que RLS ya permite sin sesión).
+// Sin sesión no espera a que se restaure ni se renueve ningún token antes de cada pedido,
+// y sus datos no dependen de quién esté logueado, así que se pueden guardar en caché.
+export const supabasePublico = createClient(urlEfectiva, claveEfectiva, {
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'sb-publico' },
+});

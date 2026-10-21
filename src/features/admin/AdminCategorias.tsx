@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { supabase } from '../../lib/supabase';
+import { invalidar } from '../../lib/cache';
 import { usePaginado } from '../../hooks/usePaginado';
 import { PaginationControls } from '../../components/PaginationControls';
 import type { Categoria } from '../../types';
@@ -18,7 +19,8 @@ export function AdminCategorias() {
       ? await supabase.from('categorias').update(datos).eq('id', form.id)
       : await supabase.from('categorias').insert(datos);
     if (error) setError(error.code === '23505' ? 'Ya existe una categoría con ese nombre.' : `No se pudo guardar: ${error.message}`);
-    else { setForm(null); await t.recargar(); }
+    else { setForm(null); invalidar('tienda:');
+    await t.recargar(); }
   };
 
   const borrar = async (c: Categoria) => {
@@ -26,7 +28,8 @@ export function AdminCategorias() {
     const { error } = await supabase.from('categorias').delete().eq('id', c.id);
     // 23503 = foreign_key_violation: la categoría todavía tiene productos (ON DELETE RESTRICT).
     if (error) setError(error.code === '23503' ? 'No se puede borrar: tiene productos asociados.' : 'No se pudo borrar.');
-    else { setError(null); await t.recargar(); }
+    else { setError(null); invalidar('tienda:');
+    await t.recargar(); }
   };
 
   return (

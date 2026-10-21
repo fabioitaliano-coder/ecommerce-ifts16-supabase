@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from '../../lib/supabase';
 import { usePaginado } from '../../hooks/usePaginado';
 import { PaginationControls } from '../../components/PaginationControls';
+import { invalidar } from '../../lib/cache';
 import { dinero, hoy } from '../../lib/formato';
 import { borrarImagen, subirImagen, urlImagen, validarImagen } from '../../lib/imagenes';
 import type { Categoria, Producto } from '../../types';
@@ -64,7 +65,8 @@ export function AdminProductos() {
       // 2) Si se reemplazó la imagen, se borra la anterior para no dejar archivos huérfanos.
       if (nuevaRuta && form.imagen_path) await borrarImagen(form.imagen_path);
       cerrar();
-      await t.recargar();
+      invalidar('tienda:');
+    await t.recargar();
     } catch (err) {
       // Si falló el guardado de la fila, se deshace la subida para no dejar un archivo suelto.
       if (nuevaRuta) await borrarImagen(nuevaRuta);
@@ -78,6 +80,7 @@ export function AdminProductos() {
     const { error } = await supabase.from('productos').delete().eq('id', p.id);
     if (error) { setError('No se pudo borrar el producto.'); return; }
     await borrarImagen(p.imagen_path);
+    invalidar('tienda:');
     await t.recargar();
   };
 
