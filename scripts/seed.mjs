@@ -91,10 +91,11 @@ const { data: enStorage } = await admin.storage.from('productos').list('seed', {
 const huerfanos = (enStorage ?? []).filter((a) => !vigentes.has(a.name)).map((a) => `seed/${a.name}`);
 if (huerfanos.length) await admin.storage.from('productos').remove(huerfanos);
 
-// 3) Descuentos: uno general y otro que exige una compra mínima
+// 3) Descuentos: dos públicos (se muestran en la tienda) y uno privado (solo se usa si se conoce el código)
 const { error: errDesc } = await admin.from('descuentos').upsert([
-  { codigo: 'BIENVENIDA10', porcentaje: 10, monto_minimo: 0 },
-  { codigo: 'VERANO20', porcentaje: 20, monto_minimo: 50000 },
+  { codigo: 'BIENVENIDA10', porcentaje: 10, monto_minimo: 0, publico: true },
+  { codigo: 'VERANO20', porcentaje: 20, monto_minimo: 50000, publico: true },
+  { codigo: 'VIP30', porcentaje: 30, monto_minimo: 100000, publico: false },
 ], { onConflict: 'codigo' });
 if (errDesc) throw errDesc;
 

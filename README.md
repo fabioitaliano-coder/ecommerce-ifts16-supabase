@@ -8,7 +8,7 @@ Datos 100 % ficticios (Ley 25.326). Licencia MIT.
 
 ## Qué incluye
 
-- **Tienda pública:** catálogo con búsqueda, filtro por categoría y paginación. Se ve sin iniciar sesión.
+- **Tienda pública:** catálogo con búsqueda, filtro por categoría y paginación, insignias de estado, promociones y un **carrito fijo al costado** (en pantallas anchas). Se ve sin iniciar sesión.
 - **Carrito y checkout:** el carrito vive en el navegador, pero la compra la resuelve la función de base de datos `crear_pedido()`.
 - **Cuenta del cliente:** registro, login e historial de pedidos con detalle.
 - **Administración (solo rol admin):** pedidos con cambio de estado y resumen, productos con vigencia, stock e **imagen**, categorías, códigos de descuento y clientes (con cambio de rol).
@@ -28,7 +28,7 @@ Datos 100 % ficticios (Ley 25.326). Licencia MIT.
 
 1. **El navegador no decide precios, stock ni descuentos.** Manda solo `producto_id` y `cantidad`; `crear_pedido()` calcula todo con los datos reales, bloquea las filas (`FOR UPDATE`) y, si algo falla, revierte la transacción entera.
 2. **El rol nunca viene del cliente.** El trigger `handle_new_user()` crea todo perfil como `cliente`; lo que mande `signUp` en el metadata se ignora.
-3. **Los códigos de descuento son confidenciales:** los clientes no pueden leer la tabla, solo usarlos a través de las funciones.
+3. **Códigos de descuento públicos y privados:** los marcados como públicos se muestran en la tienda como promociones; los privados (por ejemplo, un código VIP) son confidenciales: los clientes solo los usan escribiéndolos, a través de `crear_pedido()`. Es la misma tabla: RLS filtra *filas* según quién consulta.
 4. **Dos capas:** el front filtra (`user_id`) y además RLS lo exige en la base. Las rutas protegidas son comodidad de navegación, no seguridad.
 5. **Dos claves, dos destinos:** la *publishable* va en el navegador; la *secret* saltea RLS y solo se usa en `scripts/`, en tu máquina.
 
@@ -67,7 +67,11 @@ npm run test:rls   # 26 pruebas que intentan romper la seguridad, el checkout y 
 npm run dev        # http://localhost:5173
 ```
 
-Usuarios demo (ficticios): `admin@demo.test`, `cliente1@demo.test` y `cliente2@demo.test`, todos con la contraseña `demo1234`. Códigos de descuento: `BIENVENIDA10` (10 %) y `VERANO20` (20 %, compra mínima de $50.000).
+Usuarios demo (ficticios): `admin@demo.test`, `cliente1@demo.test` y `cliente2@demo.test`, todos con la contraseña `demo1234`. Códigos de descuento: `BIENVENIDA10` (10 %) y `VERANO20` (20 %, compra mínima de $50.000), ambos públicos, y `VIP30` (30 %, mínimo $100.000), privado.
+
+## Modo clase
+
+Arriba a la derecha hay un botón **Modo clase**. Activo, muestra notas que explican qué consulta hace cada pantalla y qué política RLS interviene (catálogo, carrito, administración), y en el login ofrece botones para completar los usuarios de demo. Se puede ocultar y la preferencia se recuerda.
 
 ## Imágenes con Supabase Storage
 

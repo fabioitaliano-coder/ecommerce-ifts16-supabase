@@ -74,8 +74,11 @@ CREATE TABLE IF NOT EXISTS public.descuentos (
   id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   codigo       TEXT NOT NULL UNIQUE CHECK (codigo = upper(trim(codigo)) AND length(codigo) > 0),
   porcentaje   NUMERIC(5,2) NOT NULL CHECK (porcentaje > 0 AND porcentaje <= 100),
-  monto_minimo NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (monto_minimo >= 0)
+  monto_minimo NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (monto_minimo >= 0),
+  publico      BOOLEAN NOT NULL DEFAULT false
 );
+-- Para bases creadas antes de existir la columna.
+ALTER TABLE public.descuentos ADD COLUMN IF NOT EXISTS publico BOOLEAN NOT NULL DEFAULT false;
 
 -- 3. PEDIDOS ---------------------------------------------------------------------------
 -- A diferencia del repo original (que no guardaba el pedido), acá queda persistido.
@@ -251,11 +254,18 @@ CREATE POLICY "productos_admin_update" ON public.productos FOR UPDATE TO authent
 DROP POLICY IF EXISTS "productos_admin_delete" ON public.productos;
 CREATE POLICY "productos_admin_delete" ON public.productos FOR DELETE TO authenticated USING (public.is_admin());
 
--- descuentos: los códigos son confidenciales; solo el admin los lee o escribe.
--- Los clientes los usan indirectamente a través de crear_pedido().
+-- descuentos: hay dos clases de códigos.
+--   * publico = true  -> se muestran en la tienda como promociones (cualquiera los puede leer).
+--   * publico = false -> son confidenciales (por ejemplo, un código VIP): solo el admin los ve y
+--     los clientes los usan escribiéndolos, a través de crear_pedido().
+-- Concepto · RLS filtra FILAS: la misma tabla devuelve cosas distintas según quién consulta.
+-- La policy pública es TO anon, authenticated y no llama a is_admin() (anon no puede ejecutarla).
 DROP POLICY IF EXISTS "descuentos_admin_all" ON public.descuentos;
 CREATE POLICY "descuentos_admin_all" ON public.descuentos FOR ALL TO authenticated
   USING (public.is_admin()) WITH CHECK (public.is_admin());
+DROP POLICY IF EXISTS "descuentos_select_publicos" ON public.descuentos;
+CREATE POLICY "descuentos_select_publicos" ON public.descuentos FOR SELECT TO anon, authenticated
+  USING (publico);
 
 -- pedidos: lectura propia o admin. NO hay INSERT para clientes: solo crear_pedido() crea.
 DROP POLICY IF EXISTS "pedidos_select" ON public.pedidos;
@@ -281,7 +291,7 @@ WITH (security_invoker = true) AS
 -- 8. PERMISOS de la API ------------------------------------------------------------------------
 REVOKE ALL ON public.profiles, public.categorias, public.productos, public.descuentos,
               public.pedidos, public.pedido_detalles, public.resumen_pedidos_por_estado FROM anon, authenticated;
-GRANT SELECT                         ON public.categorias, public.productos TO anon;
+GRANT SELECT                         ON public.categorias, public.productos, public.descuentos TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.categorias, public.productos, public.descuentos TO authenticated;
 GRANT SELECT, UPDATE                 ON public.profiles, public.pedidos TO authenticated;
 GRANT SELECT                         ON public.pedido_detalles, public.resumen_pedidos_por_estado TO authenticated;

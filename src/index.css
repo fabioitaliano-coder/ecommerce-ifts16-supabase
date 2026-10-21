@@ -1,7 +1,7 @@
 :root { --azul:#1a56db; --borde:#cbd5e1; --fondo:#f8fafc; --texto:#0f172a; --error:#b91c1c; --ok:#047857; }
 * { box-sizing: border-box; }
 body { margin:0; font-family:system-ui,sans-serif; background:var(--fondo); color:var(--texto); }
-main { max-width:1000px; margin:0 auto; padding:1rem; }
+main { max-width:1240px; margin:0 auto; padding:1rem; }
 h1 { font-size:1.5rem; } h2 { font-size:1.05rem; margin:.25rem 0; }
 a { color:var(--azul); }
 .barra { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:.75rem 1.5rem; padding:.75rem 1rem; background:#fff; border-bottom:1px solid var(--borde); }
@@ -73,3 +73,54 @@ th { background:#f1f5f9; white-space:nowrap; }
 .esqueleto .corto { width:35%; } .esqueleto .boton { min-height:44px; margin-top:auto; }
 @keyframes brillo { to { background-position:-200% 0; } }
 @media (prefers-reduced-motion: reduce) { .esqueleto .bloque { animation:none; } }
+
+/* ---- Tienda en dos columnas: productos + carrito fijo (como el original de la clase 11) ---- */
+.tienda-layout { display:grid; grid-template-columns:minmax(0,1fr); gap:1.5rem; align-items:start; }
+.carrito-lateral { display:none; }
+@media (min-width: 1000px) {
+  .tienda-layout { grid-template-columns:minmax(0,1fr) 360px; }
+  .carrito-lateral { display:block; position:sticky; top:1rem; max-height:calc(100vh - 2rem); overflow-y:auto; }
+  .barra-carrito { display:none !important; }
+}
+.barra-carrito { position:fixed; left:1rem; right:1rem; bottom:1rem; z-index:5; text-align:center; padding:.85rem 1rem; border-radius:999px; background:var(--azul); color:#fff; font-weight:600; text-decoration:none; box-shadow:0 4px 14px rgba(15,23,42,.35); }
+.titulo-con-insignias { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:.5rem 1rem; }
+.insignias { display:flex; flex-wrap:wrap; gap:.4rem; }
+.insignia-estado { padding:.15rem .6rem; border-radius:6px; background:#e2e8f0; color:#0f172a; font-size:.78rem; font-weight:600; white-space:nowrap; }
+.insignia-estado.oscura { background:#475569; color:#fff; }
+.insignias-tarjeta { display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
+.insignia-stock { padding:.1rem .5rem; border-radius:6px; font-size:.75rem; font-weight:600; white-space:nowrap; }
+.insignia-stock.ok { background:#d1fae5; color:#065f46; } .insignia-stock.poco { background:#fef3c7; color:#92400e; } .insignia-stock.agotado { background:#fee2e2; color:#991b1b; }
+.producto h2 { margin-top:.15rem; }
+/* Promociones públicas como insignias */
+.promos-tienda, .promos { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; margin:.5rem 0 1rem; }
+.promo { background:#fff7ed; color:#9a3412; border:1px dashed #fb923c; border-radius:999px; padding:.3rem .8rem; font-size:.82rem; font-weight:600; }
+.promo.aplicada { background:#16a34a; border:1px solid #16a34a; color:#fff; }
+/* Notas del modo clase */
+.nota-clase { margin:.75rem 0 1rem; padding:.65rem .85rem; border-left:4px solid var(--azul); background:#eff6ff; border-radius:0 8px 8px 0; font-size:.85rem; line-height:1.45; }
+.nota-clase > strong { display:block; font-size:.72rem; letter-spacing:.04em; text-transform:uppercase; color:#1d4ed8; margin-bottom:.2rem; }
+.nota-clase code, .nota code { background:#fff; padding:0 .25rem; border-radius:4px; color:#be185d; font-size:.8rem; }
+.fila-demo { display:flex; gap:.5rem; margin-top:.5rem; }
+/* Panel del carrito */
+.panel-carrito { display:grid; gap:.75rem; }
+.panel-carrito h2 { margin:0; font-size:1.25rem; }
+.encabezado-panel { display:flex; justify-content:space-between; align-items:start; gap:.5rem; }
+.nota { margin:0; color:#64748b; font-size:.8rem; }
+.vacio { margin:0; color:#64748b; }
+.lineas { list-style:none; margin:0; padding:0; }
+.lineas li { display:flex; justify-content:space-between; gap:.75rem; padding:.7rem 0; border-bottom:1px solid #e2e8f0; }
+.lineas li > div:first-child { display:grid; gap:.2rem; }
+.lineas .derecha { text-align:right; display:grid; align-content:space-between; justify-items:end; }
+.stepper { display:inline-flex; align-items:center; border:1px solid var(--borde); border-radius:6px; overflow:hidden; width:fit-content; }
+.stepper span { min-width:2rem; text-align:center; font-weight:600; }
+.stepper button { border:0; border-radius:0; }
+.chico { padding:.2rem .6rem; font-size:.85rem; }
+button.enlace { background:none; border:0; padding:0; color:var(--error); font-size:.8rem; text-decoration:underline; }
+.fila-codigo { display:flex; gap:.5rem; } .fila-codigo input { flex:1; min-width:0; text-transform:uppercase; }
+.aviso-codigo { margin:0; font-size:.85rem; }
+.totales .ok { color:var(--ok); font-weight:600; }
+.alerta { margin:0; padding:.6rem .8rem; border-radius:8px; font-size:.9rem; }
+.alerta.error { background:#fee2e2; color:#991b1b; } .alerta.info { background:#dbeafe; color:#1e40af; }
+.comprar-grande { width:100%; min-height:48px; font-weight:600; }
+.casilla { display:flex !important; grid-template-columns:none; align-items:start; gap:.5rem; font-size:.85rem; }
+.casilla input { margin-top:.2rem; }
+@media (max-width: 999px) { main { padding-bottom:5rem; } }

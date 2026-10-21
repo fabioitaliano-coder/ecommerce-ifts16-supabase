@@ -43,8 +43,11 @@ await caso('sin sesión no se puede crear, editar ni borrar productos', async ()
   const { data } = await admin.from('productos').select('precio').eq('id', prueba.id).single();
   assert.equal(Number(data.precio), 100);
 });
-await caso('sin sesión no se pueden leer descuentos ni pedidos', async () => {
-  assert.equal(((await anon.from('descuentos').select('*')).data ?? []).length, 0);
+await caso('sin sesión se ven solo los descuentos públicos (no los privados) y ningún pedido', async () => {
+  const { data } = await anon.from('descuentos').select('codigo, publico');
+  assert.ok(data.length > 0, 'las promociones públicas deben verse');
+  assert.ok(data.every((d) => d.publico === true), 'apareció un código privado');
+  assert.ok(!data.some((d) => d.codigo === 'VIP30'));
   assert.equal(((await anon.from('pedidos').select('id')).data ?? []).length, 0);
 });
 
@@ -55,8 +58,15 @@ await caso('un cliente no puede editar precio ni stock de un producto', async ()
   assert.equal(Number(data.precio), 100);
   assert.equal(data.stock, 3);
 });
-await caso('un cliente no puede leer los códigos de descuento', async () => {
-  assert.equal(((await c1.from('descuentos').select('*')).data ?? []).length, 0);
+await caso('un cliente no puede leer los códigos de descuento privados', async () => {
+  const { data } = await c1.from('descuentos').select('codigo');
+  assert.ok(!data.some((d) => d.codigo === 'VIP30'));
+});
+await caso('un cliente no puede crear ni editar descuentos', async () => {
+  assert.ok((await c1.from('descuentos').insert({ codigo: 'HACK99', porcentaje: 99, publico: true })).error);
+  await c1.from('descuentos').update({ porcentaje: 1 }).eq('codigo', 'BIENVENIDA10');
+  const { data } = await admin.from('descuentos').select('porcentaje').eq('codigo', 'BIENVENIDA10').single();
+  assert.equal(Number(data.porcentaje), 10);
 });
 await caso('un cliente no puede insertar pedidos directamente', async () => {
   assert.ok((await c1.from('pedidos').insert({ user_id: A, subtotal: 1, total: 1 })).error);
@@ -192,7 +202,8 @@ await caso('el admin puede crear, editar y borrar productos y descuentos', async
   assert.ifError(error);
   assert.ifError((await adm.from('productos').update({ precio: 6 }).eq('id', p.id)).error);
   assert.ifError((await adm.from('productos').delete().eq('id', p.id)).error);
-  assert.ok(((await adm.from('descuentos').select('*')).data ?? []).length > 0);
+  const { data: todos } = await adm.from('descuentos').select('codigo');
+  assert.ok(todos.some((d) => d.codigo === 'VIP30'), 'el admin debe ver también los códigos privados');
 });
 await caso('el admin ve pedidos de varios clientes y cambia estados', async () => {
   const { data } = await adm.from('pedidos').select('id, user_id, estado').limit(200);

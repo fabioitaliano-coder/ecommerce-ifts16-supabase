@@ -11,9 +11,12 @@ interface CartContextType {
   vaciar: () => void;
   subtotal: number;
   cantidadTotal: number;
+  codigo: string | null;
+  setCodigo: (c: string | null) => void;
 }
 
 const CLAVE = 'carrito-ifts16';
+const CLAVE_CODIGO = 'carrito-ifts16-codigo';
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 function leer(): ItemCarrito[] {
@@ -25,6 +28,11 @@ function leer(): ItemCarrito[] {
 // y recalcula todo con los datos reales de la base (función crear_pedido).
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ItemCarrito[]>(leer);
+  const [codigo, setCodigoEstado] = useState<string | null>(() => { try { return localStorage.getItem(CLAVE_CODIGO); } catch { return null; } });
+  const setCodigo = (c: string | null) => {
+    setCodigoEstado(c);
+    try { c ? localStorage.setItem(CLAVE_CODIGO, c) : localStorage.removeItem(CLAVE_CODIGO); } catch { /* se ignora */ }
+  };
 
   useEffect(() => {
     try { localStorage.setItem(CLAVE, JSON.stringify(items)); } catch { /* modo privado: se ignora */ }
@@ -40,13 +48,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const setCantidad = (id: number, cantidad: number) =>
     setItems((prev) => prev.map((i) => i.producto_id === id ? { ...i, cantidad: limitar(cantidad, i.stock) } : i));
   const quitar = (id: number) => setItems((prev) => prev.filter((i) => i.producto_id !== id));
-  const vaciar = () => setItems([]);
+  const vaciar = () => { setItems([]); setCodigo(null); };
 
   const subtotal = items.reduce((s, i) => s + i.precio * i.cantidad, 0);
   const cantidadTotal = items.reduce((s, i) => s + i.cantidad, 0);
 
   return (
-    <CartContext.Provider value={{ items, agregar, setCantidad, quitar, vaciar, subtotal, cantidadTotal }}>
+    <CartContext.Provider value={{ items, agregar, setCantidad, quitar, vaciar, subtotal, cantidadTotal, codigo, setCodigo }}>
       {children}
     </CartContext.Provider>
   );

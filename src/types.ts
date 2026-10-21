@@ -17,7 +17,8 @@ export interface Producto {
   categorias?: { nombre: string } | null;
 }
 
-export interface Descuento { id: number; codigo: string; porcentaje: number; monto_minimo: number }
+export interface Descuento { id: number; codigo: string; porcentaje: number; monto_minimo: number; publico: boolean }
+export type Promo = Pick<Descuento, 'codigo' | 'porcentaje' | 'monto_minimo'>;
 
 export interface Perfil { id: string; email: string | null; full_name: string; role: Rol; created_at: string }
 

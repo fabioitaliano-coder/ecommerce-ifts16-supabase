@@ -2,6 +2,7 @@ import { lazy } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { ModoClaseProvider } from './context/ModoClaseContext';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { Layout } from './components/Layout';
 import { LoginForm } from './features/auth/LoginForm';
@@ -20,6 +21,7 @@ export default function App() {
   return (
     <AuthProvider>
       <CartProvider>
+       <ModoClaseProvider>
         <BrowserRouter>
           <Routes>
             <Route element={<Layout />}>
@@ -48,6 +50,7 @@ export default function App() {
             </Route>
           </Routes>
         </BrowserRouter>
+       </ModoClaseProvider>
       </CartProvider>
     </AuthProvider>
   );

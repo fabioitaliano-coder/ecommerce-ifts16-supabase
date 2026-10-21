@@ -1,10 +1,11 @@
 import { supabasePublico } from './supabase';
 import { cuandoEsteLibre, precargar } from './cache';
 import { hoy } from './formato';
-import type { Categoria, Producto } from '../types';
+import type { Categoria, Producto, Promo } from '../types';
 
 export const POR_PAGINA = 12;
 export const CLAVE_CATEGORIAS = 'tienda:categorias';
+export const CLAVE_PROMOS = 'tienda:promos';
 
 export interface FiltroTienda { categoria: string; busqueda: string; pagina: number }
 export interface PaginaProductos { filas: Producto[]; total: number }
@@ -16,6 +17,14 @@ export async function consultarCategorias(): Promise<Pick<Categoria, 'id' | 'nom
   const { data, error } = await supabasePublico.from('categorias').select('id, nombre').order('nombre');
   if (error) throw error;
   return data ?? [];
+}
+
+// Promociones públicas: RLS deja leer sin sesión solo los descuentos marcados como públicos.
+// Los privados (por ejemplo un código VIP) no aparecen acá aunque se pidan.
+export async function consultarPromos(): Promise<Promo[]> {
+  const { data, error } = await supabasePublico.from('descuentos').select('codigo, porcentaje, monto_minimo').eq('publico', true).order('porcentaje');
+  if (error) throw error;
+  return (data ?? []) as Promo[];
 }
 
 // Se piden solo las columnas que usa la tarjeta: respuestas más chicas, menos para transferir.
@@ -38,6 +47,7 @@ export async function consultarProductos(f: FiltroTienda): Promise<PaginaProduct
 // descarga y se evalúa el resto del JavaScript.
 export function precargarCatalogo() {
   precargar(CLAVE_CATEGORIAS, consultarCategorias, true);
+  precargar(CLAVE_PROMOS, consultarPromos, true);
   const inicial: FiltroTienda = { categoria: '', busqueda: '', pagina: 1 };
   precargar(claveProductos(inicial), () => consultarProductos(inicial), true);
 }

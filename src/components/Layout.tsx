@@ -2,10 +2,12 @@ import { Suspense } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useModoClase } from '../context/ModoClaseContext';
 
 export function Layout() {
   const { user, role, signOut } = useAuth();
   const { cantidadTotal } = useCart();
+  const clase = useModoClase();
   return (
     <>
       <header className="barra">
@@ -17,6 +19,9 @@ export function Layout() {
           {role === 'admin' && <NavLink to="/admin">Administración</NavLink>}
         </nav>
         <div className="sesion">
+          <button className="secundario chico" onClick={clase.alternar} aria-pressed={clase.activo} title="Muestra u oculta las notas explicativas">
+            Modo clase: {clase.activo ? 'sí' : 'no'}
+          </button>
           {user ? (
             <>
               <small>{user.email}{role ? ` · ${role}` : ''}</small>

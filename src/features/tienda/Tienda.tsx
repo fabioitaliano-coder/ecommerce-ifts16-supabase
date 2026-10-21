@@ -1,18 +1,24 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import { CartPanel } from '../../components/CartPanel';
+import { NotaClase } from '../../components/NotaClase';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useDatosCacheados } from '../../hooks/useDatosCacheados';
 import { PaginationControls } from '../../components/PaginationControls';
 import { precargar } from '../../lib/cache';
 import {
-  CLAVE_CATEGORIAS, POR_PAGINA, claveProductos, consultarCategorias, consultarProductos,
+  CLAVE_CATEGORIAS, CLAVE_PROMOS, POR_PAGINA, claveProductos, consultarCategorias, consultarProductos, consultarPromos,
   precargarCategoria, precargarTodasLasCategorias, type FiltroTienda,
 } from '../../lib/catalogo';
 import { dinero } from '../../lib/formato';
 import { urlImagen } from '../../lib/imagenes';
 
 export function Tienda() {
-  const { items, agregar } = useCart();
+  const { user, role } = useAuth();
+  const { items, agregar, cantidadTotal, codigo, setCodigo } = useCart();
+  const promos = useDatosCacheados(CLAVE_PROMOS, consultarPromos, true);
   const [categoria, setCategoria] = useState('');
   const [texto, setTexto] = useState('');
   const [pagina, setPagina] = useState(1);
@@ -44,8 +50,35 @@ export function Tienda() {
   const elegirCategoria = (id: string) => { setCategoria(id); setPagina(1); };
 
   return (
-    <section>
-      <h1>Productos</h1>
+    <div className="tienda-layout">
+      <section>
+        <div className="titulo-con-insignias">
+          <h1>Productos</h1>
+          <div className="insignias" aria-label="Estado de la tienda">
+            <span className="insignia-estado">{prod.cargando ? 'Cargando…' : `${total} productos`}</span>
+            <span className="insignia-estado oscura">Sesión: {user ? (role ?? '…') : 'invitado'}</span>
+            <span className="insignia-estado oscura">Carrito local: {cantidadTotal === 0 ? 'vacío' : `${cantidadTotal} ítem${cantidadTotal === 1 ? '' : 's'}`}</span>
+          </div>
+        </div>
+
+        <NotaClase titulo="catálogo">
+          Esta pantalla lee con un cliente <strong>público</strong> (sin sesión), porque RLS permite ver los productos vigentes y las promociones públicas.
+          Recursos conectados: <code>from('productos')</code>, <code>from('categorias')</code>, <code>from('descuentos')</code> (solo los públicos) y <code>rpc('crear_pedido')</code> al comprar.
+          La primera página y cada categoría se guardan en caché (Anexo 9).
+        </NotaClase>
+
+        {(promos.datos?.length ?? 0) > 0 && (
+          <div className="promos-tienda" aria-label="Promociones">
+            <span className="nota">Promociones:</span>
+            {promos.datos!.map((p) => (
+              <button key={p.codigo} className={`promo${codigo === p.codigo ? ' aplicada' : ''}`} onClick={() => setCodigo(codigo === p.codigo ? null : p.codigo)}
+                title={p.monto_minimo > 0 ? `Compra mínima ${dinero(p.monto_minimo)}` : 'Sin compra mínima'}>
+                {codigo === p.codigo ? '✓ ' : ''}{p.codigo} · {Number(p.porcentaje)}% OFF{p.monto_minimo > 0 ? ` desde ${dinero(p.monto_minimo)}` : ''}
+              </button>
+            ))}
+          </div>
+        )}
+
       <div className="fila">
         <label>Buscar <input type="search" value={texto} onChange={(e) => { setTexto(e.target.value); setPagina(1); }} placeholder="Nombre del producto" /></label>
       </div>
@@ -84,13 +117,15 @@ export function Tienda() {
                   : <div className="foto vacia" aria-hidden="true">Sin imagen</div>}
                 {enCarrito > 0 && <span className="en-carrito">{enCarrito} en carrito</span>}
               </div>
-              <span className="etiqueta">{p.categorias?.nombre}</span>
+              <div className="insignias-tarjeta">
+                <span className="etiqueta">{p.categorias?.nombre}</span>
+                <span className={`insignia-stock ${agotado ? 'agotado' : p.stock <= 5 ? 'poco' : 'ok'}`}>
+                  {agotado ? 'Sin stock' : p.stock <= 5 ? `Últimas ${p.stock}` : `Stock: ${p.stock}`}
+                </span>
+              </div>
               <h2>{p.nombre}</h2>
               <p className="descripcion">{p.descripcion}</p>
               <p className="precio">{dinero(p.precio)}</p>
-              <p className={`linea-stock ${agotado ? 'error' : 'stock'}`}>
-                {agotado ? 'Sin stock' : p.stock <= 5 ? `¡Últimas ${p.stock} unidades!` : `${p.stock} disponibles`}
-              </p>
               {/* El texto del botón no cambia con la cantidad: esa información va en la etiqueta de la foto. */}
               <button className="comprar" onClick={() => agregar(p)} disabled={agotado || maximo}>
                 {agotado ? 'Sin stock' : maximo ? 'Máximo en carrito' : 'Agregar al carrito'}
@@ -100,6 +135,11 @@ export function Tienda() {
         })}
       </div>
       <PaginationControls currentPage={pagina} totalItems={total} pageSize={POR_PAGINA} onPageChange={setPagina} />
-    </section>
+      </section>
+
+      {/* En pantallas anchas el carrito queda fijo al costado; en angostas se llega por la barra inferior. */}
+      <aside className="carrito-lateral"><CartPanel /></aside>
+      {cantidadTotal > 0 && <Link to="/carrito" className="barra-carrito">Ver carrito · {cantidadTotal} ítem{cantidadTotal === 1 ? '' : 's'}</Link>}
+    </div>
   );
 }
