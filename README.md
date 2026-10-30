@@ -63,7 +63,7 @@ Completá `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_SECRE
 npm install
 npm run seed       # 5 categorías, 20 productos con imagen, 2 descuentos, 3 usuarios demo y pedidos
 npm run seed -- --reset   # BORRA pedidos y productos de la demo y los vuelve a cargar
-npm run test:rls   # 26 pruebas que intentan romper la seguridad, el checkout y Storage
+npm run test:rls   # 28 pruebas que intentan romper la seguridad, el checkout y Storage
 npm run dev        # http://localhost:5173
 ```
 
